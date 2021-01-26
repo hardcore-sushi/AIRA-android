@@ -1,0 +1,31 @@
+[package]
+name = "aira"
+version = "0.0.1"
+authors = ["Hardcore Sushi <hardcore.sushi@disroot.org>"]
+edition = "2018"
+
+[target.'cfg(target_os="android")'.dependencies]
+jni = { version = "0.19", default-features = false }
+
+[lib]
+crate-type = ["dylib"]
+
+[dependencies]
+rand-8 = {package = "rand", version = "0.8.3"}
+rand-7 = {package = "rand", version = "0.7.3"}
+lazy_static = "1.4.0"
+rusqlite = {version = "0.25.1", features = ["bundled"]}
+ed25519-dalek = "1" #for singing
+x25519-dalek = "1.1" #for shared secret
+sha2 = "0.9.3"
+hkdf = "0.11.0"
+aes-gcm = "0.9.0" #PSEC
+aes-gcm-siv = "0.10.0" #Database
+hmac = "0.11.0"
+hex = "0.4.3"
+strum_macros = "0.20.1" #display enums
+uuid = {version = "0.8", features = ["v4"]}
+scrypt = "0.7.0"
+zeroize = "1.2.0"
+log = "0.4.14"
+android_log = "0.1.3"

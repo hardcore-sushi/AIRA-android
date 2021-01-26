@@ -1,0 +1,54 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.swiperefreshlayout.widget.SwipeRefreshLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/refresher"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    tools:context=".MainActivity">
+
+    <androidx.constraintlayout.widget.ConstraintLayout
+        android:layout_width="match_parent"
+        android:layout_height="match_parent">
+
+        <TextView
+            android:id="@+id/text_online_sessions"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="@string/online_peers"
+            style="@style/Label"
+            app:layout_constraintTop_toTopOf="parent"/>
+
+        <ListView
+            android:id="@+id/online_sessions"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            app:layout_constraintTop_toBottomOf="@id/text_online_sessions"/>
+
+        <TextView
+            android:id="@+id/text_offline_sessions"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="@string/offline_contacts"
+            style="@style/Label"
+            app:layout_constraintTop_toBottomOf="@id/online_sessions"/>
+
+        <ListView
+            android:id="@+id/offline_sessions"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            app:layout_constraintTop_toBottomOf="@id/text_offline_sessions"/>
+
+        <EditText
+            android:id="@+id/edit_peer_ip"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:inputType="text"
+            android:maxLines="1"
+            android:imeOptions="actionGo"
+            android:hint="@string/add_peer_ip"
+            android:layout_margin="30dp"
+            app:layout_constraintBottom_toBottomOf="parent"/>
+    </androidx.constraintlayout.widget.ConstraintLayout>
+
+</androidx.swiperefreshlayout.widget.SwipeRefreshLayout>

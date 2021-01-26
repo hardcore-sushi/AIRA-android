@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    package="sushi.hardcore.aira">
+
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE"/>
+    <uses-permission android:name="android.permission.INTERNET"/>
+
+    <uses-permission android:name="android.permission.READ_PHONE_STATE" tools:node="remove"/>
+
+    <application
+        android:icon="@mipmap/ic_launcher"
+        android:label="@string/app_name"
+        android:roundIcon="@mipmap/ic_launcher_round"
+        android:supportsRtl="true"
+        android:theme="@style/Theme.AIRA"
+        android:allowBackup="true">
+
+        <service
+            android:name=".background_service.AIRAService"
+            android:enabled="true"
+            android:exported="false"/>
+
+        <receiver android:name=".background_service.NotificationBroadcastReceiver" android:exported="false">
+            <intent-filter>
+                <action android:name="mark_as_read"/>
+            </intent-filter>
+        </receiver>
+
+        <activity
+            android:name=".ChatActivity"
+            android:windowSoftInputMode="adjustResize"/>
+        <activity android:name=".MainActivity">
+            <intent-filter android:label="@string/share_label">
+                <action android:name="android.intent.action.SEND"/>
+                <category android:name="android.intent.category.DEFAULT"/>
+                <data android:mimeType="*/*"/>
+            </intent-filter>
+        </activity>
+        <activity android:name=".LoginActivity">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN"/>
+                <category android:name="android.intent.category.LAUNCHER"/>
+            </intent-filter>
+        </activity>
+        <activity android:name=".SettingsActivity"/>
+    </application>
+
+</manifest>

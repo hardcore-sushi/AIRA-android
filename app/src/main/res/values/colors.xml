@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="primary">#262626</color>
+    <color name="secondary">#FF3C00</color>
+    <color name="white">#FFFFFF</color>
+    <color name="backgroundColor">#111111</color>
+    <color name="sessionBackground">#1F1F1F</color>
+    <color name="bubbleBackground">@color/sessionBackground</color>
+    <color name="incomingBubbleBackground">@color/secondary</color>
+    <color name="textLink">#3845A3</color>
+    <color name="messageTextColor">#ffffff</color>
+</resources>
