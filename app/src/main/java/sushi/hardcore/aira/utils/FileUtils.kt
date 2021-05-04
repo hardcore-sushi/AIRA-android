@@ -46,7 +46,7 @@ object FileUtils {
             }
         } else {
             @Suppress("Deprecation")
-            File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS), datedFilename).outputStream()
+            File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS), File(datedFilename).name).outputStream()
         }
     }
 }

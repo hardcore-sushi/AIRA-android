@@ -1,5 +1,5 @@
 # AIRA Android
-AIRA is peer-to-peer encrypted communication tool for local networks built on the [PSEC protocol](https://forge.chapril.org/hardcoresushi/PSEC). It allows to securely send text messages and files without any server or Internet access.
+AIRA is peer-to-peer encrypted communication tool for local networks built on the [PSEC protocol](https://forge.chapril.org/hardcoresushi/PSEC). It allows to securely send text messages and files without any server or Internet access. AIRA automatically discovers and connects to other peers on your network, so you don't need any prior configuration to start communicating.
 
 Here is the Android version. You can find the original AIRA desktop version [here](https://forge.chapril.org/hardcoresushi/AIRA).
 

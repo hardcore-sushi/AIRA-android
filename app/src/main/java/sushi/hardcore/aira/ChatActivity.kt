@@ -7,8 +7,6 @@ import android.provider.OpenableColumns
 import android.view.Menu
 import android.view.MenuItem
 import android.view.View
-import android.widget.LinearLayout
-import android.widget.TextView
 import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AlertDialog
@@ -21,6 +19,8 @@ import sushi.hardcore.aira.background_service.AIRAService
 import sushi.hardcore.aira.background_service.Protocol
 import sushi.hardcore.aira.background_service.ReceiveFileTransfer
 import sushi.hardcore.aira.databinding.ActivityChatBinding
+import sushi.hardcore.aira.databinding.DialogFingerprintsBinding
+import sushi.hardcore.aira.databinding.DialogInfoBinding
 import sushi.hardcore.aira.utils.FileUtils
 import sushi.hardcore.aira.utils.StringUtils
 import java.util.*
@@ -36,7 +36,7 @@ class ChatActivity : AppCompatActivity() {
     private var lastLoadedMessageOffset = 0
     private var isActivityInForeground = false
     private val filePicker = registerForActivityResult(ActivityResultContracts.GetContent()) { uri ->
-        if (::airaService.isInitialized) {
+        if (::airaService.isInitialized && uri != null) {
             contentResolver.query(uri, null, null, null, null)?.let { cursor ->
                 if (cursor.moveToFirst()) {
                     contentResolver.openInputStream(uri)?.let { inputStream ->
@@ -238,13 +238,14 @@ class ChatActivity : AppCompatActivity() {
                 val contact = airaService.contacts[sessionId]
                 val session = airaService.sessions[sessionId]
                 val publicKey = contact?.publicKey ?: session?.peerPublicKey
-                val dialogView = layoutInflater.inflate(R.layout.dialog_info, null)
-                dialogView.findViewById<TextView>(R.id.text_fingerprint).text = StringUtils.beautifyFingerprint(generateFingerprint(publicKey!!))
+                val dialogBinding = DialogInfoBinding.inflate(layoutInflater)
+                dialogBinding.textAvatar.setLetterFrom(sessionName)
+                dialogBinding.textFingerprint.text = StringUtils.beautifyFingerprint(generateFingerprint(publicKey!!))
                 if (session == null) {
-                    dialogView.findViewById<LinearLayout>(R.id.online_fields).visibility = View.GONE
+                    dialogBinding.onlineFields.visibility = View.GONE
                 } else {
-                    dialogView.findViewById<TextView>(R.id.text_ip).text = session.ip
-                    dialogView.findViewById<TextView>(R.id.text_outgoing).text = getString(if (session.outgoing) {
+                    dialogBinding.textIp.text = session.ip
+                    dialogBinding.textOutgoing.text = getString(if (session.outgoing) {
                         R.string.outgoing
                     } else {
                         R.string.incoming
@@ -252,7 +253,7 @@ class ChatActivity : AppCompatActivity() {
                 }
                 AlertDialog.Builder(this)
                         .setTitle(sessionName)
-                        .setView(dialogView)
+                        .setView(dialogBinding.root)
                         .setPositiveButton(R.string.ok, null)
                         .show()
                 true
@@ -282,12 +283,12 @@ class ChatActivity : AppCompatActivity() {
                 airaService.contacts[sessionId]?.let { contact ->
                     val localFingerprint = StringUtils.beautifyFingerprint(AIRADatabase.getIdentityFingerprint())
                     val peerFingerprint = StringUtils.beautifyFingerprint(generateFingerprint(contact.publicKey))
-                    val dialogView = layoutInflater.inflate(R.layout.dialog_fingerprints, null)
-                    dialogView.findViewById<TextView>(R.id.text_local_fingerprint).text = localFingerprint
-                    dialogView.findViewById<TextView>(R.id.text_peer_fingerprint).text = peerFingerprint
+                    val dialogBinding = DialogFingerprintsBinding.inflate(layoutInflater)
+                    dialogBinding.textLocalFingerprint.text = localFingerprint
+                    dialogBinding.textPeerFingerprint.text = peerFingerprint
                     AlertDialog.Builder(this)
                         .setTitle(R.string.verifying_contact)
-                        .setView(dialogView)
+                        .setView(dialogBinding.root)
                         .setPositiveButton(R.string.they_match) { _, _ ->
                             if (airaService.setVerified(sessionId)) {
                                 invalidateOptionsMenu()

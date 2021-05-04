@@ -33,6 +33,8 @@ class TextAvatar @JvmOverloads constructor(
     }
 
     fun setLetterFrom(name: String) {
-        view.findViewById<TextView>(R.id.text_letter).text = name[0].toUpperCase().toString()
+        if (name.isNotEmpty()) {
+            view.findViewById<TextView>(R.id.text_letter).text = name[0].toUpperCase().toString()
+        }
     }
 }

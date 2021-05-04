@@ -22,7 +22,7 @@
         <ListView
             android:id="@+id/online_sessions"
             android:layout_width="match_parent"
-            android:layout_height="wrap_content"
+            android:layout_height="0dp"
             app:layout_constraintTop_toBottomOf="@id/text_online_sessions"/>
 
         <TextView
@@ -36,19 +36,46 @@
         <ListView
             android:id="@+id/offline_sessions"
             android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            app:layout_constraintTop_toBottomOf="@id/text_offline_sessions"/>
+            android:layout_height="0dp"
+            app:layout_constraintTop_toBottomOf="@id/text_offline_sessions"
+            app:layout_constraintBottom_toTopOf="@+id/bottom_panel"/>
 
-        <EditText
-            android:id="@+id/edit_peer_ip"
+        <androidx.constraintlayout.widget.ConstraintLayout
+            android:id="@+id/bottom_panel"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:inputType="text"
-            android:maxLines="1"
-            android:imeOptions="actionGo"
-            android:hint="@string/add_peer_ip"
-            android:layout_margin="30dp"
-            app:layout_constraintBottom_toBottomOf="parent"/>
+            android:orientation="horizontal"
+            android:layout_marginHorizontal="20dp"
+            app:layout_constraintBottom_toBottomOf="parent">
+
+            <EditText
+                android:id="@+id/edit_peer_ip"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:inputType="text"
+                android:maxLines="1"
+                android:imeOptions="actionGo"
+                android:hint="@string/add_peer_ip"
+                android:layout_marginEnd="10dp"
+                app:layout_constraintTop_toTopOf="parent"
+                app:layout_constraintBottom_toBottomOf="parent"
+                app:layout_constraintStart_toStartOf="parent"
+                app:layout_constraintEnd_toStartOf="@id/button_show_ip"/>
+
+            <ImageButton
+                android:id="@+id/button_show_ip"
+                android:layout_width="30dp"
+                android:layout_height="30dp"
+                android:src="@drawable/ic_info"
+                android:scaleType="fitXY"
+                android:background="#00000000"
+                app:layout_constraintTop_toTopOf="parent"
+                app:layout_constraintBottom_toBottomOf="parent"
+                app:layout_constraintStart_toEndOf="@id/edit_peer_ip"
+                app:layout_constraintEnd_toEndOf="parent"/>
+
+        </androidx.constraintlayout.widget.ConstraintLayout>
+
     </androidx.constraintlayout.widget.ConstraintLayout>
 
 </androidx.swiperefreshlayout.widget.SwipeRefreshLayout>

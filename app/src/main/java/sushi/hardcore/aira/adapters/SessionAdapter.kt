@@ -31,14 +31,15 @@ class SessionAdapter(context: Context): BaseAdapter() {
         val view: View = convertView ?: inflater.inflate(R.layout.adapter_session, parent, false)
         val currentSession = getItem(position)
         view.findViewById<TextView>(R.id.text_name).apply {
-            if (currentSession.name == null) {
+            view.findViewById<TextAvatar>(R.id.text_avatar).setLetterFrom(if (currentSession.name == null) {
                 text = currentSession.ip
                 setTextColor(Color.RED)
+                "?"
             } else {
                 text = currentSession.name
                 setTextColor(Color.WHITE)
-            }
-            view.findViewById<TextAvatar>(R.id.text_avatar).setLetterFrom(text.toString())
+                currentSession.name!!
+            })
         }
         view.findViewById<ImageView>(R.id.image_trust_level).apply {
             if (currentSession.isVerified) {

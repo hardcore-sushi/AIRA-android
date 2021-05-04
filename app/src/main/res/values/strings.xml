@@ -70,4 +70,5 @@
     <string name="add_contact">Add contact</string>
     <string name="remove_contact">Remove contact</string>
     <string name="details">Details</string>
+    <string name="your_addresses">Your IP addresses:</string>
 </resources>

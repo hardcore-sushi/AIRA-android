@@ -10,6 +10,7 @@ import android.os.IBinder
 import android.provider.OpenableColumns
 import android.view.Menu
 import android.view.MenuItem
+import android.widget.AbsListView
 import android.widget.AdapterView
 import android.widget.Toast
 import androidx.appcompat.app.AlertDialog
@@ -19,13 +20,31 @@ import sushi.hardcore.aira.adapters.SessionAdapter
 import sushi.hardcore.aira.background_service.AIRAService
 import sushi.hardcore.aira.background_service.ReceiveFileTransfer
 import sushi.hardcore.aira.databinding.ActivityMainBinding
+import sushi.hardcore.aira.databinding.DialogIpAddressesBinding
 import sushi.hardcore.aira.utils.FileUtils
+import sushi.hardcore.aira.utils.StringUtils
+import java.lang.StringBuilder
+import java.net.NetworkInterface
 
 class MainActivity : AppCompatActivity() {
     private lateinit var binding: ActivityMainBinding
     private lateinit var airaService: AIRAService
     private lateinit var onlineSessionAdapter: SessionAdapter
     private lateinit var offlineSessionAdapter: SessionAdapter
+    private val onSessionsItemClick = AdapterView.OnItemClickListener { adapter, _, position, _ ->
+        launchChatActivity(adapter.getItemAtPosition(position) as Session)
+    }
+    private val onSessionsItemClickSendFile = AdapterView.OnItemClickListener { adapter, _, position, _ ->
+        askShareFileTo(adapter.getItemAtPosition(position) as Session)
+    }
+    private val onSessionsScrollListener = object : AbsListView.OnScrollListener {
+        override fun onScrollStateChanged(view: AbsListView?, scrollState: Int) {}
+        override fun onScroll(listView: AbsListView, firstVisibleItem: Int, visibleItemCount: Int, totalItemCount: Int) {
+            if (listView.getChildAt(0) != null) {
+                binding.refresher.isEnabled = listView.firstVisiblePosition == 0 && listView.getChildAt(0).top == 0
+            }
+        }
+    }
     private val uiCallbacks = object : AIRAService.UiCallbacks {
         override fun onNewSession(sessionId: Int, ip: String) {
             runOnUiThread {
@@ -75,27 +94,21 @@ class MainActivity : AppCompatActivity() {
         binding.onlineSessions.apply {
             adapter = onlineSessionAdapter
             onItemClickListener = if (openedToShareFile) {
-                    AdapterView.OnItemClickListener { _, _, position, _ ->
-                        askShareFileTo(onlineSessionAdapter.getItem(position))
-                    }
+                    onSessionsItemClickSendFile
                 } else {
-                    AdapterView.OnItemClickListener { _, _, position, _ ->
-                        launchChatActivity(onlineSessionAdapter.getItem(position))
-                    }
+                    onSessionsItemClick
                 }
+            setOnScrollListener(onSessionsScrollListener)
         }
         offlineSessionAdapter = SessionAdapter(this)
         binding.offlineSessions.apply {
             adapter = offlineSessionAdapter
             onItemClickListener = if (openedToShareFile) {
-                AdapterView.OnItemClickListener { _, _, position, _ ->
-                    askShareFileTo(offlineSessionAdapter.getItem(position))
+                    onSessionsItemClickSendFile
+                } else {
+                    onSessionsItemClick
                 }
-            } else {
-                AdapterView.OnItemClickListener { _, _, position, _ ->
-                    launchChatActivity(offlineSessionAdapter.getItem(position))
-                }
-            }
+            setOnScrollListener(onSessionsScrollListener)
         }
         Intent(this, AIRAService::class.java).also { serviceIntent ->
             bindService(serviceIntent, object : ServiceConnection {
@@ -121,6 +134,23 @@ class MainActivity : AppCompatActivity() {
             }, Context.BIND_AUTO_CREATE)
         }
 
+        binding.buttonShowIp.setOnClickListener {
+            val ipAddresses = StringBuilder()
+            for (iface in NetworkInterface.getNetworkInterfaces()) {
+                for (addr in iface.inetAddresses) {
+                    if (!addr.isLoopbackAddress) {
+                        ipAddresses.appendLine(StringUtils.getIpFromInetAddress(addr)+" ("+iface.displayName+')')
+                    }
+                }
+            }
+            val dialogBinding = DialogIpAddressesBinding.inflate(layoutInflater)
+            dialogBinding.textIpAddresses.text = ipAddresses.substring(0, ipAddresses.length-1) //remove last LF
+            AlertDialog.Builder(this)
+                    .setTitle(R.string.your_addresses)
+                    .setView(dialogBinding.root)
+                    .setPositiveButton(R.string.ok, null)
+                    .show()
+        }
         binding.editPeerIp.setOnEditorActionListener { _, _, _ ->
             if (::airaService.isInitialized){
                 airaService.connectTo(binding.editPeerIp.text.toString())

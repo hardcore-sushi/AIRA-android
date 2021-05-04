@@ -1,5 +1,7 @@
 package sushi.hardcore.aira.utils
 
+import java.net.InetAddress
+
 object StringUtils {
     fun beautifyFingerprint(fingerprint: String): String {
         val newFingerprint = StringBuilder(fingerprint.length+7)
@@ -8,5 +10,15 @@ object StringUtils {
         }
         newFingerprint.append(fingerprint.slice(fingerprint.length-4 until fingerprint.length))
         return newFingerprint.toString()
+    }
+
+    fun getIpFromInetAddress(addr: InetAddress): String {
+        val rawIp = addr.hostAddress
+        val i = rawIp.lastIndexOf('%')
+        return if (i == -1) {
+            rawIp
+        } else {
+            rawIp.substring(0, i)
+        }
     }
 }

@@ -45,5 +45,30 @@ class Protocol {
         fun ackChunk(): ByteArray {
             return byteArrayOf(ACK_CHUNK)
         }
+
+        class SmallFile(val rawFileName: ByteArray, val fileContent: ByteArray)
+
+        fun parseSmallFile(buffer: ByteArray): SmallFile? {
+            if (buffer.size > 3) {
+                val filenameLen = ByteBuffer.wrap(ByteArray(2) +buffer.sliceArray(1..2)).int
+                if (buffer.size > 3+filenameLen) {
+                    val rawFileName = buffer.sliceArray(3 until 3+filenameLen)
+                    return SmallFile(rawFileName, buffer.sliceArray(3+filenameLen until buffer.size))
+                }
+            }
+            return null
+        }
+
+        class FileInfo(val fileName: String, val fileSize: Long)
+
+        fun parseAskFile(buffer: ByteArray): FileInfo? {
+            return if (buffer.size > 9) {
+                val fileSize = ByteBuffer.wrap(buffer.sliceArray(1..8)).long
+                val fileName = buffer.sliceArray(9 until buffer.size).decodeToString()
+                FileInfo(fileName, fileSize)
+            } else {
+                null
+            }
+        }
     }
 }

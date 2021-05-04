@@ -610,42 +610,42 @@ class AIRAService : Service() {
                                                 }
                                                 Protocol.ASK_LARGE_FILE -> {
                                                     if (receiveFileTransfers[sessionId] == null) {
-                                                        val fileSize = ByteBuffer.wrap(buffer.sliceArray(1..8)).long
-                                                        val fileName = buffer.sliceArray(9 until buffer.size).decodeToString()
-                                                        val fileTransfer = ReceiveFileTransfer(fileName, fileSize, { fileTransfer ->
-                                                            createFileTransferNotification(sessionId, fileTransfer)
-                                                            sendTo(sessionId, Protocol.acceptLargeFile())
-                                                        }, {
-                                                            receiveFileTransfers.remove(sessionId)
-                                                            sendTo(sessionId, Protocol.abortFileTransfer())
-                                                            notificationManager.cancel(notificationIdManager.getFileTransferNotificationId(sessionId))
-                                                        })
-                                                        receiveFileTransfers[sessionId] = fileTransfer
-                                                        val name = getNameOf(sessionId)
-                                                        var shouldSendNotification = true
-                                                        if (!isAppInBackground) {
-                                                            if (uiCallbacks?.onAskLargeFile(sessionId, name, fileTransfer) == true) {
-                                                                shouldSendNotification = false
+                                                        Protocol.parseAskFile(buffer)?.let { fileInfo ->
+                                                            val fileTransfer = ReceiveFileTransfer(fileInfo.fileName, fileInfo.fileSize, { fileTransfer ->
+                                                                createFileTransferNotification(sessionId, fileTransfer)
+                                                                sendTo(sessionId, Protocol.acceptLargeFile())
+                                                            }, {
+                                                                receiveFileTransfers.remove(sessionId)
+                                                                sendTo(sessionId, Protocol.abortFileTransfer())
+                                                                notificationManager.cancel(notificationIdManager.getFileTransferNotificationId(sessionId))
+                                                            })
+                                                            receiveFileTransfers[sessionId] = fileTransfer
+                                                            val name = getNameOf(sessionId)
+                                                            var shouldSendNotification = true
+                                                            if (!isAppInBackground) {
+                                                                if (uiCallbacks?.onAskLargeFile(sessionId, name, fileTransfer) == true) {
+                                                                    shouldSendNotification = false
+                                                                }
                                                             }
-                                                        }
-                                                        if (shouldSendNotification) {
-                                                            val notificationBuilder = NotificationCompat.Builder(this, ASK_FILE_TRANSFER_NOTIFICATION_CHANNEL_ID)
-                                                                    .setCategory(NotificationCompat.CATEGORY_EVENT)
-                                                                    .setSmallIcon(R.drawable.ic_launcher)
-                                                                    .setContentTitle(getString(R.string.download_file_request))
-                                                                    .setContentText(getString(R.string.want_to_send_a_file, name, ": $fileName"))
-                                                                    .setOngoing(true) //not cancelable
-                                                                    .setContentIntent(
-                                                                            PendingIntent.getActivity(this, 0, Intent(this, ChatActivity::class.java).apply {
-                                                                                putExtra("sessionId", sessionId)
-                                                                                putExtra("sessionName", name)
-                                                                            }, 0)
-                                                                    )
-                                                                    .setDefaults(Notification.DEFAULT_ALL)
-                                                                    .apply {
-                                                                        priority = NotificationCompat.PRIORITY_HIGH
-                                                                    }
-                                                            notificationManager.notify(notificationIdManager.getFileTransferNotificationId(sessionId), notificationBuilder.build())
+                                                            if (shouldSendNotification) {
+                                                                val notificationBuilder = NotificationCompat.Builder(this, ASK_FILE_TRANSFER_NOTIFICATION_CHANNEL_ID)
+                                                                        .setCategory(NotificationCompat.CATEGORY_EVENT)
+                                                                        .setSmallIcon(R.drawable.ic_launcher)
+                                                                        .setContentTitle(getString(R.string.download_file_request))
+                                                                        .setContentText(getString(R.string.want_to_send_a_file, name, ": "+fileInfo.fileName))
+                                                                        .setOngoing(true) //not cancelable
+                                                                        .setContentIntent(
+                                                                                PendingIntent.getActivity(this, 0, Intent(this, ChatActivity::class.java).apply {
+                                                                                    putExtra("sessionId", sessionId)
+                                                                                    putExtra("sessionName", name)
+                                                                                }, 0)
+                                                                        )
+                                                                        .setDefaults(Notification.DEFAULT_ALL)
+                                                                        .apply {
+                                                                            priority = NotificationCompat.PRIORITY_HIGH
+                                                                        }
+                                                                notificationManager.notify(notificationIdManager.getFileTransferNotificationId(sessionId), notificationBuilder.build())
+                                                            }
                                                         }
                                                     }
                                                 }
@@ -653,13 +653,16 @@ class AIRAService : Service() {
                                                     when (buffer[0]){
                                                         Protocol.MESSAGE -> buffer
                                                         Protocol.FILE -> {
-                                                            val filenameLen = ByteBuffer.wrap(ByteArray(2) +buffer.sliceArray(1..2)).int
-                                                            val filename = buffer.sliceArray(3 until 3+filenameLen)
-                                                            val rawFileUuid = AIRADatabase.storeFile(contacts[sessionId]?.uuid, buffer.sliceArray(3+filenameLen until buffer.size))
-                                                            if (rawFileUuid == null) {
+                                                            val smallFile = Protocol.parseSmallFile(buffer)
+                                                            if (smallFile == null) {
                                                                 null
                                                             } else {
-                                                                byteArrayOf(Protocol.FILE)+rawFileUuid+filename
+                                                                val rawFileUuid = AIRADatabase.storeFile(contacts[sessionId]?.uuid, smallFile.fileContent)
+                                                                if (rawFileUuid == null) {
+                                                                    null
+                                                                } else {
+                                                                    byteArrayOf(Protocol.FILE)+rawFileUuid+smallFile.rawFileName
+                                                                }
                                                             }
                                                         }
                                                         else -> {
