@@ -10,6 +10,7 @@ import android.os.IBinder
 import android.provider.OpenableColumns
 import android.view.Menu
 import android.view.MenuItem
+import android.view.View
 import android.widget.AbsListView
 import android.widget.AdapterView
 import android.widget.Toast
@@ -30,7 +31,7 @@ class MainActivity : AppCompatActivity() {
     private lateinit var binding: ActivityMainBinding
     private lateinit var airaService: AIRAService
     private lateinit var onlineSessionAdapter: SessionAdapter
-    private lateinit var offlineSessionAdapter: SessionAdapter
+    private var offlineSessionAdapter: SessionAdapter? = null
     private val onSessionsItemClick = AdapterView.OnItemClickListener { adapter, _, position, _ ->
         launchChatActivity(adapter.getItemAtPosition(position) as Session)
     }
@@ -55,7 +56,7 @@ class MainActivity : AppCompatActivity() {
             runOnUiThread {
                 onlineSessionAdapter.remove(sessionId)?.let { session ->
                     if (session.isContact) {
-                        offlineSessionAdapter.add(session)
+                        offlineSessionAdapter?.add(session)
                     }
                 }
             }
@@ -100,15 +101,20 @@ class MainActivity : AppCompatActivity() {
                 }
             setOnScrollListener(onSessionsScrollListener)
         }
-        offlineSessionAdapter = SessionAdapter(this)
-        binding.offlineSessions.apply {
-            adapter = offlineSessionAdapter
-            onItemClickListener = if (openedToShareFile) {
+        if (openedToShareFile) {
+            binding.offlineSessions.visibility = View.GONE
+            binding.textOfflineSessions.visibility = View.GONE
+        } else {
+            offlineSessionAdapter = SessionAdapter(this)
+            binding.offlineSessions.apply {
+                adapter = offlineSessionAdapter
+                onItemClickListener = if (openedToShareFile) {
                     onSessionsItemClickSendFile
                 } else {
                     onSessionsItemClick
                 }
-            setOnScrollListener(onSessionsScrollListener)
+                setOnScrollListener(onSessionsScrollListener)
+            }
         }
         Intent(this, AIRAService::class.java).also { serviceIntent ->
             bindService(serviceIntent, object : ServiceConnection {
@@ -206,7 +212,7 @@ class MainActivity : AppCompatActivity() {
                 airaService.isAppInBackground = false
                 airaService.uiCallbacks = uiCallbacks //restoring callbacks
                 onlineSessionAdapter.reset()
-                offlineSessionAdapter.reset()
+                offlineSessionAdapter?.reset()
                 loadContacts()
                 loadSessions()
                 title = airaService.identityName
@@ -217,8 +223,10 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun loadContacts() {
-        for ((sessionId, contact) in airaService.contacts) {
-            offlineSessionAdapter.add(Session(sessionId, true, contact.verified, contact.seen, null, contact.name))
+        if (offlineSessionAdapter != null) {
+            for ((sessionId, contact) in airaService.contacts) {
+                offlineSessionAdapter!!.add(Session(sessionId, true, contact.verified, contact.seen, null, contact.name))
+            }
         }
     }
 
@@ -235,7 +243,7 @@ class MainActivity : AppCompatActivity() {
             onlineSessionAdapter.add(Session(sessionId, false, false, seen, ip, airaService.savedNames[sessionId]))
         } else {
             onlineSessionAdapter.add(Session(sessionId, true, contact.verified, seen, ip, contact.name))
-            offlineSessionAdapter.remove(sessionId)
+            offlineSessionAdapter?.remove(sessionId)
         }
     }
 
