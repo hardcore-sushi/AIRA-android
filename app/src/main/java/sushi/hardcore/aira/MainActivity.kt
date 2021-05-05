@@ -32,9 +32,6 @@ class MainActivity : AppCompatActivity() {
     private lateinit var airaService: AIRAService
     private lateinit var onlineSessionAdapter: SessionAdapter
     private var offlineSessionAdapter: SessionAdapter? = null
-    private val onSessionsItemClick = AdapterView.OnItemClickListener { adapter, _, position, _ ->
-        launchChatActivity(adapter.getItemAtPosition(position) as Session)
-    }
     private val onSessionsItemClickSendFile = AdapterView.OnItemClickListener { adapter, _, position, _ ->
         askShareFileTo(adapter.getItemAtPosition(position) as Session)
     }
@@ -97,8 +94,18 @@ class MainActivity : AppCompatActivity() {
             onItemClickListener = if (openedToShareFile) {
                     onSessionsItemClickSendFile
                 } else {
-                    onSessionsItemClick
+                    AdapterView.OnItemClickListener { _, _, position, _ ->
+                        if (isSelecting()) {
+                            changeSelection(onlineSessionAdapter, position)
+                        } else {
+                            launchChatActivity(onlineSessionAdapter.getItem(position))
+                        }
+                    }
                 }
+            onItemLongClickListener = AdapterView.OnItemLongClickListener { _, _, position, _ ->
+                changeSelection(onlineSessionAdapter, position)
+                true
+            }
             setOnScrollListener(onSessionsScrollListener)
         }
         if (openedToShareFile) {
@@ -111,7 +118,17 @@ class MainActivity : AppCompatActivity() {
                 onItemClickListener = if (openedToShareFile) {
                     onSessionsItemClickSendFile
                 } else {
-                    onSessionsItemClick
+                    AdapterView.OnItemClickListener { _, _, position, _ ->
+                        if (isSelecting()) {
+                            changeSelection(offlineSessionAdapter!!, position)
+                        } else {
+                            launchChatActivity(offlineSessionAdapter!!.getItem(position))
+                        }
+                    }
+                }
+                onItemLongClickListener = AdapterView.OnItemLongClickListener { _, _, position, _ ->
+                    changeSelection(offlineSessionAdapter!!, position)
+                    true
                 }
                 setOnScrollListener(onSessionsScrollListener)
             }
@@ -166,8 +183,9 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    override fun onCreateOptionsMenu(menu: Menu?): Boolean {
+    override fun onCreateOptionsMenu(menu: Menu): Boolean {
         menuInflater.inflate(R.menu.main_activity, menu)
+        menu.findItem(R.id.remove_contact).isVisible = isSelecting()
         return true
     }
 
@@ -194,6 +212,30 @@ class MainActivity : AppCompatActivity() {
                 }
                 true
             }
+            R.id.remove_contact -> {
+                AlertDialog.Builder(this)
+                        .setTitle(R.string.warning)
+                        .setMessage(R.string.ask_remove_contacts)
+                        .setPositiveButton(R.string.delete) { _, _ ->
+                            Thread {
+                                for (sessionId in onlineSessionAdapter.getSelectedSessionIds()) {
+                                    airaService.removeContact(sessionId)
+                                }
+                                offlineSessionAdapter?.let {
+                                    for (sessionId in it.getSelectedSessionIds()) {
+                                        airaService.removeContact(sessionId)
+                                    }
+                                }
+                                runOnUiThread {
+                                    unSelectAll()
+                                    refreshSessions()
+                                }
+                            }.start()
+                        }
+                        .setNegativeButton(R.string.cancel, null)
+                        .show()
+                true
+            }
             else -> super.onOptionsItemSelected(item)
         }
     }
@@ -211,15 +253,46 @@ class MainActivity : AppCompatActivity() {
             if (AIRAService.isServiceRunning) {
                 airaService.isAppInBackground = false
                 airaService.uiCallbacks = uiCallbacks //restoring callbacks
-                onlineSessionAdapter.reset()
-                offlineSessionAdapter?.reset()
-                loadContacts()
-                loadSessions()
+                refreshSessions()
                 title = airaService.identityName
             } else {
                 finish()
             }
         }
+    }
+
+    override fun onBackPressed() {
+        if (isSelecting()) {
+            unSelectAll()
+        } else {
+            super.onBackPressed()
+        }
+    }
+
+    private fun refreshSessions() {
+        onlineSessionAdapter.reset()
+        offlineSessionAdapter?.reset()
+        loadContacts()
+        loadSessions()
+    }
+
+    private fun unSelectAll() {
+        onlineSessionAdapter.unSelectAll()
+        offlineSessionAdapter?.unSelectAll()
+        invalidateOptionsMenu()
+    }
+
+    private fun changeSelection(adapter: SessionAdapter, position: Int) {
+        val wasSelecting = adapter.selectedItems.isNotEmpty()
+        adapter.onSelectionChanged(position)
+        val isSelecting = adapter.selectedItems.isNotEmpty()
+        if (wasSelecting != isSelecting) {
+            invalidateOptionsMenu()
+        }
+    }
+
+    private fun isSelecting(): Boolean {
+        return onlineSessionAdapter.selectedItems.isNotEmpty() || offlineSessionAdapter?.selectedItems?.isNotEmpty() == true
     }
 
     private fun loadContacts() {

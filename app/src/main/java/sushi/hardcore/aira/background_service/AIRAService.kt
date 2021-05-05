@@ -14,6 +14,7 @@ import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
 import androidx.core.app.RemoteInput
 import sushi.hardcore.aira.*
+import sushi.hardcore.aira.utils.StringUtils
 import java.io.IOException
 import java.io.InputStream
 import java.net.*
@@ -556,7 +557,7 @@ class AIRAService : Service() {
                                                     }
                                                 }
                                                 Protocol.TELL_NAME -> {
-                                                    val name = buffer.sliceArray(1 until buffer.size).decodeToString()
+                                                    val name = StringUtils.sanitizeName(buffer.sliceArray(1 until buffer.size).decodeToString())
                                                     uiCallbacks?.onNameTold(sessionId, name)
                                                     val contact = contacts[sessionId]
                                                     if (contact == null) {

@@ -42,6 +42,7 @@
     <string name="ask_delete_conversation">Deleting a conversation only affects you. Your contact will still have a copy of this conversation if she/he doesn\'t delete it too. Do you really want to delete all this conversation (messages and files) ?</string>
     <string name="delete">Delete</string>
     <string name="ask_remove_contact">Deleting contact will remove her/his identity key and your conversation (messages and files). You won\'t be able to recognize her/him anymore. This action only affects you. Do you really want to remove this contact ?</string>
+    <string name="ask_remove_contacts">Deleting contacts will remove their identity keys and your conversations (messages and files). You won\'t be able to recognize them anymore. This action only affects you. Do you really want to remove these contacts ?</string>
     <string name="enable_password">Encrypt with a password</string>
     <string name="msg_notification_channel_name">New Messages</string>
     <string name="mark_read">Mark read</string>
@@ -72,4 +73,6 @@
     <string name="details">Details</string>
     <string name="your_addresses">Your IP addresses:</string>
     <string name="file_transfer_already_in_progress">Another file transfer is already in progress</string>
+    <string name="settings">Settings</string>
+    <string name="log_out">Log out</string>
 </resources>

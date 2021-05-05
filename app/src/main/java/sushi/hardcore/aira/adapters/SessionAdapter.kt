@@ -8,12 +8,14 @@ import android.view.ViewGroup
 import android.widget.BaseAdapter
 import android.widget.ImageView
 import android.widget.TextView
+import androidx.core.content.ContextCompat
 import sushi.hardcore.aira.R
 import sushi.hardcore.aira.widgets.TextAvatar
 
-class SessionAdapter(context: Context): BaseAdapter() {
+class SessionAdapter(val context: Context): BaseAdapter() {
     private val sessions = mutableListOf<Session>()
     private val inflater: LayoutInflater = LayoutInflater.from(context)
+    val selectedItems = mutableListOf<Int>()
 
     override fun getCount(): Int {
         return sessions.size
@@ -55,6 +57,11 @@ class SessionAdapter(context: Context): BaseAdapter() {
         } else {
             View.VISIBLE
         }
+        view.setBackgroundColor(ContextCompat.getColor(context, if (selectedItems.contains(position)) {
+           R.color.itemSelected
+        } else {
+            R.color.sessionBackground
+        }))
         return view
     }
 
@@ -98,5 +105,23 @@ class SessionAdapter(context: Context): BaseAdapter() {
     fun reset() {
         sessions.clear()
         notifyDataSetChanged()
+    }
+
+    fun onSelectionChanged(position: Int) {
+        if (!selectedItems.contains(position)) {
+            selectedItems.add(position)
+        } else {
+            selectedItems.remove(position)
+        }
+        notifyDataSetChanged()
+    }
+
+    fun unSelectAll() {
+        selectedItems.clear()
+        notifyDataSetChanged()
+    }
+
+    fun getSelectedSessionIds(): List<Int> {
+        return selectedItems.map { position -> sessions[position].sessionId }
     }
 }

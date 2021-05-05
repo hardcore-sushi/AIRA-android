@@ -1,6 +1,9 @@
 package sushi.hardcore.aira
 
-import android.content.*
+import android.content.ComponentName
+import android.content.Context
+import android.content.Intent
+import android.content.ServiceConnection
 import android.os.Bundle
 import android.os.IBinder
 import android.provider.OpenableColumns
@@ -12,6 +15,7 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.constraintlayout.widget.ConstraintLayout
+import androidx.core.view.updatePadding
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import sushi.hardcore.aira.adapters.ChatAdapter
@@ -24,7 +28,6 @@ import sushi.hardcore.aira.databinding.DialogInfoBinding
 import sushi.hardcore.aira.utils.FileUtils
 import sushi.hardcore.aira.utils.StringUtils
 import java.io.FileNotFoundException
-import java.util.*
 
 class ChatActivity : AppCompatActivity() {
     private external fun generateFingerprint(publicKey: ByteArray): String
@@ -185,6 +188,7 @@ class ChatActivity : AppCompatActivity() {
                             airaService.isAppInBackground = false
                             if (airaService.isOnline(sessionId)) {
                                 onConnected()
+                                binding.recyclerChat.updatePadding(bottom = 0)
                             }
                             airaService.setSeen(sessionId, true)
                         }

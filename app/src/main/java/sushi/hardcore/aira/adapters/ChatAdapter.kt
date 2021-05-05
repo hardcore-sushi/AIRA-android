@@ -11,6 +11,8 @@ import android.widget.ImageButton
 import android.widget.LinearLayout
 import android.widget.TextView
 import androidx.core.content.ContextCompat
+import androidx.core.view.marginEnd
+import androidx.core.view.updatePadding
 import androidx.recyclerview.widget.RecyclerView
 import sushi.hardcore.aira.ChatItem
 import sushi.hardcore.aira.R
@@ -44,9 +46,11 @@ class ChatAdapter(
 
     internal open class BubbleViewHolder(private val context: Context, itemView: View): RecyclerView.ViewHolder(itemView) {
         fun handleItemView(position: Int) {
-            if (position == 0) {
-                itemView.setPadding(itemView.paddingLeft, 50, itemView.paddingRight, itemView.paddingBottom)
-            }
+            itemView.updatePadding(top = if (position == 0) {
+                50
+            } else {
+                itemView.paddingBottom
+            })
         }
         fun setBubbleColor(bubble: View, outgoing: Boolean) {
             if (outgoing) {

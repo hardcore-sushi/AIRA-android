@@ -4,8 +4,7 @@
     android:orientation="horizontal"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:padding="10dp"
-    android:background="@drawable/background_session">
+    android:padding="10dp">
 
     <sushi.hardcore.aira.widgets.TextAvatar
         android:id="@+id/text_avatar"

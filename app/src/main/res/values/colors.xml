@@ -9,4 +9,5 @@
     <color name="incomingBubbleBackground">@color/secondary</color>
     <color name="textLink">#3845A3</color>
     <color name="messageTextColor">#ffffff</color>
+    <color name="itemSelected">#66666666</color>
 </resources>

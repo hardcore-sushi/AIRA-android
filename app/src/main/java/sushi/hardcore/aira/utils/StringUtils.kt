@@ -21,4 +21,8 @@ object StringUtils {
             rawIp.substring(0, i)
         }
     }
+
+    fun sanitizeName(name: String): String {
+        return name.replace('\n', ' ')
+    }
 }
