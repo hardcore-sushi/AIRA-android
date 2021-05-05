@@ -28,9 +28,7 @@
             </intent-filter>
         </receiver>
 
-        <activity
-            android:name=".ChatActivity"
-            android:windowSoftInputMode="adjustResize"/>
+        <activity android:name=".ChatActivity"/>
         <activity android:name=".MainActivity">
             <intent-filter android:label="@string/share_label">
                 <action android:name="android.intent.action.SEND"/>

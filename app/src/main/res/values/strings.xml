@@ -71,4 +71,5 @@
     <string name="remove_contact">Remove contact</string>
     <string name="details">Details</string>
     <string name="your_addresses">Your IP addresses:</string>
+    <string name="file_transfer_already_in_progress">Another file transfer is already in progress</string>
 </resources>

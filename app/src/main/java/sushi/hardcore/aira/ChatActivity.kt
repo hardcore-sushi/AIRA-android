@@ -23,6 +23,7 @@ import sushi.hardcore.aira.databinding.DialogFingerprintsBinding
 import sushi.hardcore.aira.databinding.DialogInfoBinding
 import sushi.hardcore.aira.utils.FileUtils
 import sushi.hardcore.aira.utils.StringUtils
+import java.io.FileNotFoundException
 import java.util.*
 
 class ChatActivity : AppCompatActivity() {
@@ -39,15 +40,19 @@ class ChatActivity : AppCompatActivity() {
         if (::airaService.isInitialized && uri != null) {
             contentResolver.query(uri, null, null, null, null)?.let { cursor ->
                 if (cursor.moveToFirst()) {
-                    contentResolver.openInputStream(uri)?.let { inputStream ->
-                        val fileName = cursor.getString(cursor.getColumnIndex(OpenableColumns.DISPLAY_NAME))
-                        val fileSize = cursor.getLong(cursor.getColumnIndex(OpenableColumns.SIZE))
-                        airaService.sendFileTo(sessionId, fileName, fileSize, inputStream)?.let { msg ->
-                            chatAdapter.newMessage(ChatItem(true, msg))
+                    try {
+                        contentResolver.openInputStream(uri)?.let { inputStream ->
+                            val fileName = cursor.getString(cursor.getColumnIndex(OpenableColumns.DISPLAY_NAME))
+                            val fileSize = cursor.getLong(cursor.getColumnIndex(OpenableColumns.SIZE))
+                            airaService.sendFileTo(sessionId, fileName, fileSize, inputStream)?.let { msg ->
+                                chatAdapter.newMessage(ChatItem(true, msg))
+                            }
+                            if (airaService.contacts.contains(sessionId)) {
+                                lastLoadedMessageOffset += 1
+                            }
                         }
-                        if (airaService.contacts.contains(sessionId)) {
-                            lastLoadedMessageOffset += 1
-                        }
+                    } catch (e: FileNotFoundException) {
+                        Toast.makeText(this, e.localizedMessage, Toast.LENGTH_SHORT).show()
                     }
                 }
                 cursor.close()
@@ -70,7 +75,9 @@ class ChatActivity : AppCompatActivity() {
                 chatAdapter = ChatAdapter(this@ChatActivity, ::onClickSaveFile)
                 binding.recyclerChat.apply {
                     adapter = chatAdapter
-                    layoutManager = LinearLayoutManager(this@ChatActivity, LinearLayoutManager.VERTICAL, false)
+                    layoutManager = LinearLayoutManager(this@ChatActivity, LinearLayoutManager.VERTICAL, false).apply {
+                        stackFromEnd = true
+                    }
                     addOnScrollListener(object : RecyclerView.OnScrollListener() {
                         fun loadMsgsIfNeeded(recyclerView: RecyclerView) {
                             if (!recyclerView.canScrollVertically(-1) && ::airaService.isInitialized) {

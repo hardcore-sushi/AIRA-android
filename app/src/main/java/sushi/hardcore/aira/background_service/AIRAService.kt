@@ -8,6 +8,7 @@ import android.net.nsd.NsdServiceInfo
 import android.os.*
 import android.os.Process.THREAD_PRIORITY_BACKGROUND
 import android.util.Log
+import android.widget.Toast
 import androidx.annotation.RequiresApi
 import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
@@ -16,7 +17,6 @@ import sushi.hardcore.aira.*
 import java.io.IOException
 import java.io.InputStream
 import java.net.*
-import java.nio.ByteBuffer
 import java.nio.channels.*
 
 class AIRAService : Service() {
@@ -143,10 +143,14 @@ class AIRAService : Service() {
                 return msg
             }
         } else {
-            val fileTransfer = SendFileTransfer(fileName, fileSize, inputStream)
-            sendFileTransfers[sessionId] = fileTransfer
-            createFileTransferNotification(sessionId, fileTransfer)
-            sendTo(sessionId, Protocol.askLargeFile(fileSize, fileName))
+            if (sendFileTransfers[sessionId] == null && receiveFileTransfers[sessionId] == null) {
+                val fileTransfer = SendFileTransfer(fileName, fileSize, inputStream)
+                sendFileTransfers[sessionId] = fileTransfer
+                createFileTransferNotification(sessionId, fileTransfer)
+                sendTo(sessionId, Protocol.askLargeFile(fileSize, fileName))
+            } else {
+                Toast.makeText(this, R.string.file_transfer_already_in_progress, Toast.LENGTH_SHORT).show()
+            }
         }
         return null
     }
