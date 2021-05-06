@@ -1,13 +1,11 @@
 package sushi.hardcore.aira
 
 import android.content.ComponentName
-import android.content.Context
 import android.content.Intent
 import android.content.ServiceConnection
 import android.net.Uri
 import android.os.Bundle
 import android.os.IBinder
-import android.provider.OpenableColumns
 import android.view.Menu
 import android.view.MenuItem
 import android.view.View
@@ -15,11 +13,10 @@ import android.widget.AbsListView
 import android.widget.AdapterView
 import android.widget.Toast
 import androidx.appcompat.app.AlertDialog
-import androidx.appcompat.app.AppCompatActivity
 import sushi.hardcore.aira.adapters.Session
 import sushi.hardcore.aira.adapters.SessionAdapter
 import sushi.hardcore.aira.background_service.AIRAService
-import sushi.hardcore.aira.background_service.ReceiveFileTransfer
+import sushi.hardcore.aira.background_service.FilesReceiver
 import sushi.hardcore.aira.databinding.ActivityMainBinding
 import sushi.hardcore.aira.databinding.DialogIpAddressesBinding
 import sushi.hardcore.aira.utils.FileUtils
@@ -27,9 +24,8 @@ import sushi.hardcore.aira.utils.StringUtils
 import java.lang.StringBuilder
 import java.net.NetworkInterface
 
-class MainActivity : AppCompatActivity() {
+class MainActivity : ServiceBoundActivity() {
     private lateinit var binding: ActivityMainBinding
-    private lateinit var airaService: AIRAService
     private lateinit var onlineSessionAdapter: SessionAdapter
     private var offlineSessionAdapter: SessionAdapter? = null
     private val onSessionsItemClickSendFile = AdapterView.OnItemClickListener { adapter, _, position, _ ->
@@ -70,9 +66,9 @@ class MainActivity : AppCompatActivity() {
             return false
         }
 
-        override fun onAskLargeFile(sessionId: Int, name: String, receiveFileTransfer: ReceiveFileTransfer): Boolean {
+        override fun onAskLargeFiles(sessionId: Int, name: String, filesReceiver: FilesReceiver): Boolean {
             runOnUiThread {
-                receiveFileTransfer.ask(this@MainActivity, name)
+                filesReceiver.ask(this@MainActivity, name)
             }
             return true
         }
@@ -86,7 +82,7 @@ class MainActivity : AppCompatActivity() {
         val identityName = intent.getStringExtra("identityName")
         identityName?.let { title = it }
 
-        val openedToShareFile = intent.action == Intent.ACTION_SEND
+        val openedToShareFile = intent.action == Intent.ACTION_SEND || intent.action == Intent.ACTION_SEND_MULTIPLE
 
         onlineSessionAdapter = SessionAdapter(this)
         binding.onlineSessions.apply {
@@ -133,30 +129,29 @@ class MainActivity : AppCompatActivity() {
                 setOnScrollListener(onSessionsScrollListener)
             }
         }
-        Intent(this, AIRAService::class.java).also { serviceIntent ->
-            bindService(serviceIntent, object : ServiceConnection {
-                override fun onServiceConnected(name: ComponentName?, service: IBinder) {
-                    val binder = service as AIRAService.AIRABinder
-                    airaService = binder.getService()
-                    airaService.uiCallbacks = uiCallbacks
-                    airaService.isAppInBackground = false
-                    loadContacts()
-                    if (AIRAService.isServiceRunning) {
-                        title = airaService.identityName
-                        loadSessions()
-                    } else {
-                        airaService.identityName = identityName
-                        startService(serviceIntent)
-                    }
-                    binding.refresher.setOnRefreshListener {
-                        airaService.restartDiscovery()
-                        binding.refresher.isRefreshing = false
-                    }
+        serviceConnection = object : ServiceConnection {
+            override fun onServiceConnected(name: ComponentName?, service: IBinder) {
+                val binder = service as AIRAService.AIRABinder
+                airaService = binder.getService()
+                airaService.uiCallbacks = uiCallbacks
+                airaService.isAppInBackground = false
+                refreshSessions()
+                if (AIRAService.isServiceRunning) {
+                    title = airaService.identityName
+                } else {
+                    airaService.identityName = identityName
+                    startService(serviceIntent)
                 }
-                override fun onServiceDisconnected(name: ComponentName?) {}
-            }, Context.BIND_AUTO_CREATE)
+            }
+            override fun onServiceDisconnected(name: ComponentName?) {}
         }
 
+        binding.refresher.setOnRefreshListener {
+            if (isServiceInitialized()) {
+                airaService.restartDiscovery()
+            }
+            binding.refresher.isRefreshing = false
+        }
         binding.buttonShowIp.setOnClickListener {
             val ipAddresses = StringBuilder()
             for (iface in NetworkInterface.getNetworkInterfaces()) {
@@ -175,7 +170,7 @@ class MainActivity : AppCompatActivity() {
                     .show()
         }
         binding.editPeerIp.setOnEditorActionListener { _, _, _ ->
-            if (::airaService.isInitialized){
+            if (isServiceInitialized()){
                 airaService.connectTo(binding.editPeerIp.text.toString())
             }
             binding.editPeerIp.text.clear()
@@ -196,7 +191,7 @@ class MainActivity : AppCompatActivity() {
                 true
             }
             R.id.close -> {
-                if (::airaService.isInitialized) {
+                if (isServiceInitialized()) {
                     AlertDialog.Builder(this)
                         .setTitle(R.string.warning)
                         .setMessage(R.string.ask_log_out)
@@ -240,24 +235,10 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    override fun onPause() {
-        super.onPause()
-        if (::airaService.isInitialized) {
+    override fun onStop() {
+        super.onStop()
+        if (isServiceInitialized()) {
             airaService.isAppInBackground = true
-        }
-    }
-
-    override fun onResume() {
-        super.onResume()
-        if (::airaService.isInitialized) {
-            if (AIRAService.isServiceRunning) {
-                airaService.isAppInBackground = false
-                airaService.uiCallbacks = uiCallbacks //restoring callbacks
-                refreshSessions()
-                title = airaService.identityName
-            } else {
-                finish()
-            }
         }
     }
 
@@ -328,34 +309,37 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun askShareFileTo(session: Session) {
-        val uri = intent.getParcelableExtra<Uri>(Intent.EXTRA_STREAM)
-        if (uri == null) {
-            Toast.makeText(this, R.string.share_uri_null, Toast.LENGTH_SHORT).show()
-        } else {
-            val cursor = contentResolver.query(uri, null, null, null, null)
-            if (cursor == null) {
-                Toast.makeText(this, R.string.file_open_failed, Toast.LENGTH_SHORT).show()
-            } else {
-                if (cursor.moveToFirst()) {
-                    val fileName = cursor.getString(cursor.getColumnIndex(OpenableColumns.DISPLAY_NAME))
-                    val fileSize = cursor.getLong(cursor.getColumnIndex(OpenableColumns.SIZE))
-                    val inputStream = contentResolver.openInputStream(uri)
-                    if (inputStream == null) {
-                        Toast.makeText(this, R.string.file_open_failed, Toast.LENGTH_SHORT).show()
-                    } else {
-                        AlertDialog.Builder(this)
-                                .setTitle(R.string.warning)
-                                .setMessage(getString(R.string.ask_send_file, fileName, FileUtils.formatSize(fileSize), session.name ?: session.ip))
-                                .setPositiveButton(R.string.yes) { _, _ ->
-                                    airaService.sendFileTo(session.sessionId, fileName, fileSize, inputStream)
-                                    finish()
-                                }
-                                .setNegativeButton(R.string.cancel, null)
-                                .show()
-                    }
-                }
-                cursor.close()
+        var uris: ArrayList<Uri>? = null
+        when (intent.action) {
+            Intent.ACTION_SEND -> intent.getParcelableExtra<Uri>(Intent.EXTRA_STREAM)?.let {
+                uris = arrayListOf(it)
             }
+            Intent.ACTION_SEND_MULTIPLE -> uris = intent.getParcelableArrayListExtra(Intent.EXTRA_STREAM)
+        }
+        if (uris == null) {
+            Toast.makeText(this, R.string.open_uri_failed, Toast.LENGTH_SHORT).show()
+        } else {
+            val msg = if (uris!!.size == 1) {
+                val sendFile = FileUtils.openFileFromUri(this, uris!![0])
+                if (sendFile == null) {
+                    Toast.makeText(this, R.string.open_uri_failed, Toast.LENGTH_SHORT).show()
+                    return
+                } else {
+                    sendFile.inputStream.close()
+                    getString(R.string.ask_send_single_file, sendFile.fileName, FileUtils.formatSize(sendFile.fileSize), session.name ?: session.ip)
+                }
+            } else {
+                getString(R.string.ask_send_multiple_files, uris!!.size, session.name ?: session.ip)
+            }
+            AlertDialog.Builder(this)
+                    .setTitle(R.string.warning)
+                    .setMessage(msg)
+                    .setPositiveButton(R.string.yes) { _, _ ->
+                        airaService.sendFilesFromUris(session.sessionId, uris!!)
+                        finish()
+                    }
+                    .setNegativeButton(R.string.cancel, null)
+                    .show()
         }
     }
 }

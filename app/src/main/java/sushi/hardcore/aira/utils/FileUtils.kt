@@ -1,11 +1,18 @@
 package sushi.hardcore.aira.utils
 
+import android.content.ContentResolver
 import android.content.ContentValues
 import android.content.Context
+import android.net.Uri
 import android.os.Environment
 import android.provider.MediaStore
+import android.provider.OpenableColumns
 import android.webkit.MimeTypeMap
+import android.widget.Toast
+import sushi.hardcore.aira.background_service.ReceiveFile
+import sushi.hardcore.aira.background_service.SendFile
 import java.io.File
+import java.io.FileNotFoundException
 import java.io.OutputStream
 import java.text.DecimalFormat
 import java.text.SimpleDateFormat
@@ -22,6 +29,26 @@ object FileUtils {
         val digitGroups = (log10(size.toDouble()) / log10(1000.0)).toInt()
         return DecimalFormat("#,##0.#").format(size / 1000.0.pow(digitGroups.toDouble())
         ) + " " + units[digitGroups]
+    }
+
+    fun openFileFromUri(context: Context, uri: Uri): SendFile? {
+        var sendFile: SendFile? = null
+        val cursor = context.contentResolver.query(uri, null, null, null, null)
+        if (cursor != null) {
+            if (cursor.moveToFirst()) {
+                try {
+                    context.contentResolver.openInputStream(uri)?.let { inputStream ->
+                        val fileName = cursor.getString(cursor.getColumnIndex(OpenableColumns.DISPLAY_NAME))
+                        val fileSize = cursor.getLong(cursor.getColumnIndex(OpenableColumns.SIZE))
+                        sendFile = SendFile(fileName, fileSize, inputStream)
+                    }
+                } catch (e: FileNotFoundException) {
+                    Toast.makeText(context, e.localizedMessage, Toast.LENGTH_SHORT).show()
+                }
+            }
+            cursor.close()
+        }
+        return sendFile
     }
 
     fun openFileForDownload(context: Context, fileName: String): OutputStream? {

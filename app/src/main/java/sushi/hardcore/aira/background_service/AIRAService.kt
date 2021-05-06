@@ -3,6 +3,7 @@ package sushi.hardcore.aira.background_service
 import android.app.*
 import android.content.Context
 import android.content.Intent
+import android.net.Uri
 import android.net.nsd.NsdManager
 import android.net.nsd.NsdServiceInfo
 import android.os.*
@@ -14,9 +15,9 @@ import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
 import androidx.core.app.RemoteInput
 import sushi.hardcore.aira.*
+import sushi.hardcore.aira.utils.FileUtils
 import sushi.hardcore.aira.utils.StringUtils
 import java.io.IOException
-import java.io.InputStream
 import java.net.*
 import java.nio.channels.*
 
@@ -44,8 +45,8 @@ class AIRAService : Service() {
     private lateinit var selector: Selector
     private val sessionIdByKey = mutableMapOf<SelectionKey, Int>()
     private val notificationIdManager = NotificationIdManager()
-    private val sendFileTransfers = mutableMapOf<Int, SendFileTransfer>()
-    val receiveFileTransfers = mutableMapOf<Int, ReceiveFileTransfer>()
+    private val sendFileTransfers = mutableMapOf<Int, FilesSender>()
+    val receiveFileTransfers = mutableMapOf<Int, FilesReceiver>()
     lateinit var contacts: HashMap<Int, Contact>
     private lateinit var serviceHandler: Handler
     private lateinit var notificationManager: NotificationManagerCompat
@@ -103,7 +104,7 @@ class AIRAService : Service() {
         fun onSessionDisconnect(sessionId: Int)
         fun onNameTold(sessionId: Int, name: String)
         fun onNewMessage(sessionId: Int, data: ByteArray): Boolean
-        fun onAskLargeFile(sessionId: Int, name: String, receiveFileTransfer: ReceiveFileTransfer): Boolean
+        fun onAskLargeFiles(sessionId: Int, name: String, filesReceiver: FilesReceiver): Boolean
     }
 
     fun connectTo(ip: String) {
@@ -133,27 +134,52 @@ class AIRAService : Service() {
         }
     }
 
-    fun sendFileTo(sessionId: Int, fileName: String, fileSize: Long, inputStream: InputStream): ByteArray? {
-        if (fileSize <= Constants.fileSizeLimit) {
-            val buffer = inputStream.readBytes()
-            inputStream.close()
-            sendTo(sessionId, Protocol.newFile(fileName, buffer))
-            AIRADatabase.storeFile(contacts[sessionId]?.uuid, buffer)?.let { rawFileUuid ->
-                val msg = byteArrayOf(Protocol.FILE)+rawFileUuid+fileName.toByteArray()
-                saveMsg(sessionId, msg)
-                return msg
-            }
-        } else {
-            if (sendFileTransfers[sessionId] == null && receiveFileTransfers[sessionId] == null) {
-                val fileTransfer = SendFileTransfer(fileName, fileSize, inputStream)
-                sendFileTransfers[sessionId] = fileTransfer
-                createFileTransferNotification(sessionId, fileTransfer)
-                sendTo(sessionId, Protocol.askLargeFile(fileSize, fileName))
-            } else {
-                Toast.makeText(this, R.string.file_transfer_already_in_progress, Toast.LENGTH_SHORT).show()
+    fun sendFilesFromUris(sessionId: Int, uris: List<Uri>): List<ByteArray>? {
+        val files = mutableListOf<SendFile>()
+        var useLargeFileTransfer = false
+        for (uri in uris) {
+            FileUtils.openFileFromUri(this, uri)?.let { sendFile ->
+                files.add(sendFile)
+                if (sendFile.fileSize > Constants.fileSizeLimit) {
+                    useLargeFileTransfer = true
+                }
             }
         }
+        return if (useLargeFileTransfer) {
+            sendLargeFilesTo(sessionId, files)
+            null
+        } else {
+            val msgs = mutableListOf<ByteArray>()
+            for (file in files) {
+                sendSmallFileTo(sessionId, file)?.let { msg ->
+                    msgs.add(msg)
+                }
+            }
+            msgs
+        }
+    }
+
+    private fun sendSmallFileTo(sessionId: Int, sendFile: SendFile): ByteArray? {
+        val buffer = sendFile.inputStream.readBytes()
+        sendFile.inputStream.close()
+        sendTo(sessionId, Protocol.newFile(sendFile.fileName, buffer))
+        AIRADatabase.storeFile(contacts[sessionId]?.uuid, buffer)?.let { rawFileUuid ->
+            val msg = byteArrayOf(Protocol.FILE) + rawFileUuid + sendFile.fileName.toByteArray()
+            saveMsg(sessionId, msg)
+            return msg
+        }
         return null
+    }
+
+    private fun sendLargeFilesTo(sessionId: Int, files: MutableList<SendFile>) {
+        if (sendFileTransfers[sessionId] == null && receiveFileTransfers[sessionId] == null) {
+            val filesSender = FilesSender(files, this, notificationManager, getNameOf(sessionId))
+            initFileTransferNotification(sessionId, filesSender.fileTransferNotification, filesSender.files[0])
+            sendFileTransfers[sessionId] = filesSender
+            sendTo(sessionId, Protocol.askLargeFiles(files))
+        } else {
+            Toast.makeText(this, R.string.file_transfer_already_in_progress, Toast.LENGTH_SHORT).show()
+        }
     }
 
     fun logOut() {
@@ -232,11 +258,11 @@ class AIRAService : Service() {
     fun deleteConversation(sessionId: Int): Boolean {
         contacts[sessionId]?.let {
             return if (AIRADatabase.deleteConversation(it.uuid)) {
-	    	savedMsgs[sessionId] = mutableListOf()
-	    	true
-	    } else {
-	    	false
-	    }
+                savedMsgs[sessionId] = mutableListOf()
+                true
+            } else {
+                false
+            }
         }
         return true
     }
@@ -358,33 +384,19 @@ class AIRAService : Service() {
         notificationManager.notify(notificationIdManager.getMessageNotificationId(sessionId), notificationBuilder.build())
     }
 
-    private fun createFileTransferNotification(sessionId: Int, fileTransfer: FileTransfer) {
-        fileTransfer.notificationBuilder = NotificationCompat.Builder(this, FILE_TRANSFER_NOTIFICATION_CHANNEL_ID)
-                .setCategory(NotificationCompat.CATEGORY_PROGRESS)
-                .setSmallIcon(R.drawable.ic_launcher)
-                .setContentTitle(getNameOf(sessionId))
-                .setContentText(fileTransfer.fileName)
-                .setOngoing(true)
-                .setProgress(fileTransfer.fileSize.toInt(), fileTransfer.transferred, true)
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.KITKAT_WATCH) {
-            val cancelIntent = PendingIntent.getBroadcast(this, 0,
-                    Intent(this, NotificationBroadcastReceiver::class.java).apply {
-                        val bundle = Bundle()
-                        bundle.putBinder("binder", AIRABinder())
-                        bundle.putInt("sessionId", sessionId)
-                        putExtra("bundle", bundle)
-                        action = NotificationBroadcastReceiver.ACTION_CANCEL_FILE_TRANSFER
-                    }, PendingIntent.FLAG_UPDATE_CURRENT)
-            fileTransfer.notificationBuilder.addAction(
-                    NotificationCompat.Action(
-                            R.drawable.ic_launcher,
-                            getString(R.string.cancel),
-                            cancelIntent
-                    )
-            )
-        }
-        fileTransfer.notificationId = notificationIdManager.getFileTransferNotificationId(sessionId)
-        notificationManager.notify(fileTransfer.notificationId, fileTransfer.notificationBuilder.build())
+    private fun initFileTransferNotification(sessionId: Int, fileTransferNotification: FileTransferNotification, file: PendingFile) {
+        fileTransferNotification.initFileTransferNotification(
+                notificationIdManager.getFileTransferNotificationId(sessionId),
+                file.fileName,
+                file.fileSize.toInt(),
+                Intent(this, NotificationBroadcastReceiver::class.java).apply {
+                    val bundle = Bundle()
+                    bundle.putBinder("binder", AIRABinder())
+                    bundle.putInt("sessionId", sessionId)
+                    putExtra("bundle", bundle)
+                    action = NotificationBroadcastReceiver.ACTION_CANCEL_FILE_TRANSFER
+                }
+        )
     }
 
     private fun saveMsg(sessionId: Int, msg: ByteArray) {
@@ -485,41 +497,47 @@ class AIRAService : Service() {
         }
     }
 
-    private fun encryptNextChunk(session: Session, fileTransfer: SendFileTransfer) {
+    private fun encryptNextChunk(session: Session, filesSender: FilesSender) {
         val nextChunk = ByteArray(Constants.FILE_CHUNK_SIZE)
         nextChunk[0] = Protocol.LARGE_FILE_CHUNK
-        val read = fileTransfer.inputStream.read(nextChunk, 1, Constants.FILE_CHUNK_SIZE-1)
-        fileTransfer.nextChunk = if (read > 0) {
+        val read = try {
+            filesSender.files[filesSender.index].inputStream.read(nextChunk, 1, Constants.FILE_CHUNK_SIZE-1)
+        } catch (e: IOException) {
+            0
+        }
+        filesSender.nextChunk = if (read > 0) {
+            filesSender.lastChunkSizes.add(nextChunk.size)
             session.encrypt(nextChunk)
         } else {
             null
         }
     }
 
-    private fun flushSendFileTransfer(sessionId: Int, session: Session, fileTransfer: SendFileTransfer) {
-        fileTransfer.nextChunk?.let {
-            session.writeAll(it)
-            while (fileTransfer.msgQueue.size > 0) {
-                val msg = fileTransfer.msgQueue.removeAt(0)
-                sendAndSave(sessionId, msg)
+    private fun flushSendFileTransfer(sessionId: Int, session: Session, filesSender: FilesSender) {
+        synchronized(filesSender) { //prevent sending nextChunk two times when canceling
+            filesSender.nextChunk?.let {
+                session.writeAll(it)
+                filesSender.nextChunk = null
+                while (filesSender.msgQueue.size > 0) {
+                    val msg = filesSender.msgQueue.removeAt(0)
+                    sendAndSave(sessionId, msg)
+                }
             }
         }
     }
 
     private fun cancelFileTransfer(sessionId: Int, session: Session, outgoing: Boolean) {
         sendFileTransfers[sessionId]?.let {
-            it.inputStream.close()
-            it.onAborted(this, notificationManager, getNameOf(sessionId))
+            it.files[it.index].inputStream.close()
             flushSendFileTransfer(sessionId, session, it)
-            sendFileTransfers.remove(sessionId)
+            sendFileTransfers.remove(sessionId)!!.fileTransferNotification.onAborted()
         }
         receiveFileTransfers[sessionId]?.let {
-            it.outputStream?.close()
-            it.onAborted(this, notificationManager, getNameOf(sessionId))
-            receiveFileTransfers.remove(sessionId)
+            it.files[it.index].outputStream?.close()
+            receiveFileTransfers.remove(sessionId)!!.fileTransferNotification.onAborted()
         }
         if (outgoing) {
-            session.encryptAndSend(Protocol.abortFileTransfer())
+            session.encryptAndSend(Protocol.abortFilesTransfer())
         }
     }
 
@@ -568,19 +586,38 @@ class AIRAService : Service() {
                                                     }
                                                 }
                                                 Protocol.LARGE_FILE_CHUNK -> {
-                                                    receiveFileTransfers[sessionId]?.let { fileTransfer ->
-                                                        fileTransfer.outputStream?.let { outputStream ->
+                                                    receiveFileTransfers[sessionId]?.let { filesReceiver ->
+                                                        val file = filesReceiver.files[filesReceiver.index]
+                                                        if (file.outputStream == null) {
+                                                            val outputStream = FileUtils.openFileForDownload(this, file.fileName)
+                                                            if (outputStream == null) {
+                                                                cancelFileTransfer(sessionId)
+                                                            } else {
+                                                                file.outputStream = outputStream
+                                                            }
+                                                        }
+                                                        file.outputStream?.let { outputStream ->
                                                             val chunk = buffer.sliceArray(1 until buffer.size)
                                                             try {
                                                                 outputStream.write(chunk)
                                                                 session.encryptAndSend(Protocol.ackChunk())
-                                                                fileTransfer.transferred += chunk.size
-                                                                if (fileTransfer.transferred >= fileTransfer.fileSize) {
+                                                                file.transferred += chunk.size
+                                                                if (file.transferred >= file.fileSize) {
                                                                     outputStream.close()
-                                                                    receiveFileTransfers.remove(sessionId)
-                                                                    fileTransfer.onCompleted(this, notificationManager, getNameOf(sessionId))
+                                                                    if (filesReceiver.index == filesReceiver.files.size-1) {
+                                                                        receiveFileTransfers.remove(sessionId)
+                                                                        filesReceiver.fileTransferNotification.onCompleted()
+                                                                    } else {
+                                                                        filesReceiver.index += 1
+                                                                        val nextFile = filesReceiver.files[filesReceiver.index]
+                                                                        initFileTransferNotification(
+                                                                                sessionId,
+                                                                                filesReceiver.fileTransferNotification,
+                                                                                nextFile
+                                                                        )
+                                                                    }
                                                                 } else {
-                                                                    fileTransfer.updateNotificationProgress(notificationManager)
+                                                                    filesReceiver.fileTransferNotification.updateNotificationProgress(chunk.size)
                                                                 }
                                                             } catch (e: IOException) {
                                                                 cancelFileTransfer(sessionId)
@@ -589,46 +626,72 @@ class AIRAService : Service() {
                                                     }
                                                 }
                                                 Protocol.ACK_CHUNK -> {
-                                                    sendFileTransfers[sessionId]?.let { fileTransfer ->
-                                                        flushSendFileTransfer(sessionId, session, fileTransfer)
-                                                        fileTransfer.transferred += fileTransfer.nextChunk?.size ?: 0
-                                                        if (fileTransfer.transferred >= fileTransfer.fileSize) {
-                                                            fileTransfer.inputStream.close()
-                                                            sendFileTransfers.remove(sessionId)
-                                                            fileTransfer.onCompleted(this, notificationManager, getNameOf(sessionId))
+                                                    sendFileTransfers[sessionId]?.let { filesSender ->
+                                                        flushSendFileTransfer(sessionId, session, filesSender)
+                                                        val file = filesSender.files[filesSender.index]
+                                                        val chunkSize = filesSender.lastChunkSizes.removeAt(0)
+                                                        file.transferred += chunkSize
+                                                        if (file.transferred >= file.fileSize) {
+                                                            file.inputStream.close()
+                                                            if (filesSender.index == filesSender.files.size-1) {
+                                                                sendFileTransfers.remove(sessionId)
+                                                                filesSender.fileTransferNotification.onCompleted()
+                                                            } else {
+                                                                filesSender.index += 1
+                                                                val nextFile = filesSender.files[filesSender.index]
+                                                                initFileTransferNotification(
+                                                                        sessionId,
+                                                                        filesSender.fileTransferNotification,
+                                                                        nextFile
+                                                                )
+                                                                encryptNextChunk(session, filesSender)
+                                                                filesSender.nextChunk?.let {
+                                                                    session.writeAll(it)
+                                                                    encryptNextChunk(session, filesSender)
+                                                                }
+                                                            }
                                                         } else {
-                                                            encryptNextChunk(session, fileTransfer)
-                                                            fileTransfer.updateNotificationProgress(notificationManager)
+                                                            encryptNextChunk(session, filesSender)
+                                                            filesSender.fileTransferNotification.updateNotificationProgress(chunkSize)
                                                         }
                                                     }
                                                 }
-                                                Protocol.ABORT_FILE_TRANSFER -> cancelFileTransfer(sessionId, session, false)
-                                                Protocol.ACCEPT_LARGE_FILE -> {
-                                                    sendFileTransfers[sessionId]?.let { fileTransfer ->
-                                                        encryptNextChunk(session, fileTransfer)
-                                                        fileTransfer.nextChunk?.let {
+                                                Protocol.ABORT_FILES_TRANSFER -> cancelFileTransfer(sessionId, session, false)
+                                                Protocol.ACCEPT_LARGE_FILES -> {
+                                                    sendFileTransfers[sessionId]?.let { filesSender ->
+                                                        encryptNextChunk(session, filesSender)
+                                                        filesSender.nextChunk?.let {
                                                             session.writeAll(it)
-                                                            fileTransfer.transferred += fileTransfer.nextChunk?.size ?: 0
-                                                            encryptNextChunk(session, fileTransfer)
+                                                            encryptNextChunk(session, filesSender)
                                                         }
                                                     }
                                                 }
-                                                Protocol.ASK_LARGE_FILE -> {
-                                                    if (receiveFileTransfers[sessionId] == null) {
-                                                        Protocol.parseAskFile(buffer)?.let { fileInfo ->
-                                                            val fileTransfer = ReceiveFileTransfer(fileInfo.fileName, fileInfo.fileSize, { fileTransfer ->
-                                                                createFileTransferNotification(sessionId, fileTransfer)
-                                                                sendTo(sessionId, Protocol.acceptLargeFile())
-                                                            }, {
-                                                                receiveFileTransfers.remove(sessionId)
-                                                                sendTo(sessionId, Protocol.abortFileTransfer())
-                                                                notificationManager.cancel(notificationIdManager.getFileTransferNotificationId(sessionId))
-                                                            })
-                                                            receiveFileTransfers[sessionId] = fileTransfer
+                                                Protocol.ASK_LARGE_FILES -> {
+                                                    if (!receiveFileTransfers.containsKey(sessionId) && !sendFileTransfers.containsKey(sessionId)) {
+                                                        Protocol.parseAskFiles(buffer)?.let { files ->
                                                             val name = getNameOf(sessionId)
+                                                            val filesReceiver = FilesReceiver(
+                                                                    files,
+                                                                    { filesReceiver ->
+                                                                        initFileTransferNotification(
+                                                                                sessionId,
+                                                                                filesReceiver.fileTransferNotification,
+                                                                                filesReceiver.files[0]
+                                                                        )
+                                                                        sendTo(sessionId, Protocol.acceptLargeFiles())
+                                                                    }, { filesReceiver ->
+                                                                        receiveFileTransfers.remove(sessionId)
+                                                                        sendTo(sessionId, Protocol.abortFilesTransfer())
+                                                                        filesReceiver.fileTransferNotification.cancel()
+                                                                    },
+                                                                    this,
+                                                                    notificationManager,
+                                                                    name
+                                                            )
+                                                            receiveFileTransfers[sessionId] = filesReceiver
                                                             var shouldSendNotification = true
                                                             if (!isAppInBackground) {
-                                                                if (uiCallbacks?.onAskLargeFile(sessionId, name, fileTransfer) == true) {
+                                                                if (uiCallbacks?.onAskLargeFiles(sessionId, name, filesReceiver) == true) {
                                                                     shouldSendNotification = false
                                                                 }
                                                             }
@@ -637,7 +700,7 @@ class AIRAService : Service() {
                                                                         .setCategory(NotificationCompat.CATEGORY_EVENT)
                                                                         .setSmallIcon(R.drawable.ic_launcher)
                                                                         .setContentTitle(getString(R.string.download_file_request))
-                                                                        .setContentText(getString(R.string.want_to_send_a_file, name, ": "+fileInfo.fileName))
+                                                                        .setContentText(getString(R.string.want_to_send_files, name))
                                                                         .setOngoing(true) //not cancelable
                                                                         .setContentIntent(
                                                                                 PendingIntent.getActivity(this, 0, Intent(this, ChatActivity::class.java).apply {
@@ -705,16 +768,8 @@ class AIRAService : Service() {
                                         sessions.remove(sessionId)
                                         savedMsgs.remove(sessionId)
                                         savedNames.remove(sessionId)
-                                        sendFileTransfers.remove(sessionId)?.notificationId?.let {
-                                            if (it != -1) {
-                                                notificationManager.cancel(it)
-                                            }
-                                        }
-                                        receiveFileTransfers.remove(sessionId)?.notificationId?.let {
-                                            if (it != -1) {
-                                                notificationManager.cancel(it)
-                                            }
-                                        }
+                                        sendFileTransfers.remove(sessionId)?.fileTransferNotification?.cancel()
+                                        receiveFileTransfers.remove(sessionId)?.fileTransferNotification?.cancel()
                                     }
                                 }
                             }

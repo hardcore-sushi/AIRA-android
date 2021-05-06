@@ -48,7 +48,7 @@
     <string name="mark_read">Mark read</string>
     <string name="ask_file_notification_channel">Download file requests</string>
     <string name="db_mkdir_failed">Databases directory creation failed</string>
-    <string name="want_to_send_a_file">%s wants to send you a file%s</string>
+    <string name="want_to_send_files">%s wants to send you some files</string>
     <string name="download_file_request">Download file request</string>
     <string name="download">Download</string>
     <string name="refuse">Refuse</string>
@@ -56,9 +56,9 @@
     <string name="transfer_aborted">Transfer aborted</string>
     <string name="transfer_completed">Transfer completed</string>
     <string name="reply">Reply</string>
-    <string name="share_uri_null">Failed to retrieve URI</string>
-    <string name="ask_send_file">Send %s (%s) to %s ?</string>
-    <string name="file_open_failed">Failed to open file</string>
+    <string name="open_uri_failed">Failed to open URI</string>
+    <string name="ask_send_single_file">Send %s (%s) to %s ?</string>
+    <string name="ask_send_multiple_files">Send %d files to %s ?</string>
     <string name="share_label">Send with AIRA</string>
     <string name="identity_fingerprint_label">Your identity\'s fingerprint:</string>
     <string name="fingerprint">Fingerprint:</string>
