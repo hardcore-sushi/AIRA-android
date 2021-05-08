@@ -21,7 +21,6 @@ import sushi.hardcore.aira.databinding.ActivityMainBinding
 import sushi.hardcore.aira.databinding.DialogIpAddressesBinding
 import sushi.hardcore.aira.utils.FileUtils
 import sushi.hardcore.aira.utils.StringUtils
-import java.lang.StringBuilder
 import java.net.NetworkInterface
 
 class MainActivity : ServiceBoundActivity() {
@@ -235,8 +234,8 @@ class MainActivity : ServiceBoundActivity() {
         }
     }
 
-    override fun onStop() {
-        super.onStop()
+    override fun onPause() {
+        super.onPause()
         if (isServiceInitialized()) {
             airaService.isAppInBackground = true
         }

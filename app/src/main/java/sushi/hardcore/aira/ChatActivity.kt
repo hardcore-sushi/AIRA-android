@@ -307,20 +307,28 @@ class ChatActivity : ServiceBoundActivity() {
         }
     }
 
-    override fun onStart() {
-        super.onStart()
+    override fun onResume() {
+        super.onResume()
         if (isServiceInitialized()) {
             airaService.setSeen(sessionId, true)
         }
     }
 
+    override fun onPause() {
+        super.onPause()
+        lastLoadedMessageOffset = 0
+    }
+
     private fun onClickSaveFile(fileName: String, rawUuid: ByteArray) {
-        FileUtils.openFileForDownload(this, fileName)?.apply {
-            AIRADatabase.loadFile(rawUuid)?.let {
-                write(it)
+        val buffer = AIRADatabase.loadFile(rawUuid)
+        if (buffer == null) {
+            Toast.makeText(this, R.string.loadFile_failed, Toast.LENGTH_SHORT).show()
+        } else {
+            FileUtils.openFileForDownload(this, fileName)?.apply {
+                write(buffer)
+                close()
                 Toast.makeText(this@ChatActivity, R.string.file_saved, Toast.LENGTH_SHORT).show()
             }
-            close()
         }
     }
 }

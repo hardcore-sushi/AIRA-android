@@ -282,35 +282,37 @@ class AIRAService : Service() {
             try {
                 val session = Session(socket, outgoing)
                 if (session.doHandshake()) {
-                    var isActuallyNewSession = true
-                    for (s in sessions.values) {
-                        if (s.peerPublicKey.contentEquals(session.peerPublicKey)) {
-                            isActuallyNewSession = false
-                        }
-                    }
-                    if (isActuallyNewSession && !session.peerPublicKey.contentEquals(AIRADatabase.getIdentityPublicKey())) {
-                        var sessionId: Int? = null
-                        for ((i, contact) in contacts) {
-                            if (contact.publicKey.contentEquals(session.peerPublicKey)){
-                                sessions[i] = session
-                                sessionId = i
+                    synchronized(this) {
+                        var isActuallyNewSession = true
+                        for (s in sessions.values) {
+                            if (s.peerPublicKey.contentEquals(session.peerPublicKey)) {
+                                isActuallyNewSession = false
                             }
                         }
-                        if (sessionId == null) {
-                            sessions[sessionCounter] = session
-                            savedMsgs[sessionCounter] = mutableListOf()
-                            sessionId = sessionCounter
-                            sessionCounter++
+                        if (isActuallyNewSession && !session.peerPublicKey.contentEquals(AIRADatabase.getIdentityPublicKey())) {
+                            var sessionId: Int? = null
+                            for ((i, contact) in contacts) {
+                                if (contact.publicKey.contentEquals(session.peerPublicKey)){
+                                    sessions[i] = session
+                                    sessionId = i
+                                }
+                            }
+                            if (sessionId == null) {
+                                sessions[sessionCounter] = session
+                                savedMsgs[sessionCounter] = mutableListOf()
+                                sessionId = sessionCounter
+                                sessionCounter++
+                            }
+                            session.configureBlocking(false)
+                            val key = session.register(selector, SelectionKey.OP_READ)
+                            sessionIdByKey[key] = sessionId
+                            uiCallbacks?.onNewSession(sessionId, session.ip)
+                            if (!isContact(sessionId)) {
+                                session.encryptAndSend(Protocol.askName())
+                            }
+                        } else {
+                            session.close()
                         }
-                        session.configureBlocking(false)
-                        val key = session.register(selector, SelectionKey.OP_READ)
-                        sessionIdByKey[key] = sessionId
-                        uiCallbacks?.onNewSession(sessionId, session.ip)
-                        if (!isContact(sessionId)) {
-                            session.encryptAndSend(Protocol.askName())
-                        }
-                    } else {
-                        session.close()
                     }
                 } else {
                     session.close()

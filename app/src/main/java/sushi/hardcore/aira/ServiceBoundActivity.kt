@@ -1,5 +1,6 @@
 package sushi.hardcore.aira
 
+import android.content.Context
 import android.content.Intent
 import android.content.ServiceConnection
 import androidx.appcompat.app.AppCompatActivity
@@ -14,8 +15,8 @@ open class ServiceBoundActivity: AppCompatActivity() {
         return ::airaService.isInitialized
     }
 
-    override fun onStop() {
-        super.onStop()
+    override fun onPause() {
+        super.onPause()
         if (::airaService.isInitialized) {
             airaService.isAppInBackground = true
             airaService.uiCallbacks = null
@@ -23,10 +24,11 @@ open class ServiceBoundActivity: AppCompatActivity() {
         }
     }
 
-    override fun onStart() {
-        super.onStart()
+    override fun onResume() {
+        super.onResume()
         if (!::serviceIntent.isInitialized) {
             serviceIntent = Intent(this, AIRAService::class.java)
         }
+        bindService(serviceIntent, serviceConnection, Context.BIND_AUTO_CREATE)
     }
 }

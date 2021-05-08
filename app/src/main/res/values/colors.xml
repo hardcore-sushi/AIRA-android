@@ -10,4 +10,5 @@
     <color name="textLink">#3845A3</color>
     <color name="messageTextColor">#ffffff</color>
     <color name="itemSelected">#66666666</color>
+    <color name="transparent">#00000000</color>
 </resources>
