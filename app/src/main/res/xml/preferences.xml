@@ -1,22 +1,41 @@
 <?xml version="1.0" encoding="utf-8"?>
 <PreferenceScreen xmlns:android="http://schemas.android.com/apk/res/android">
 
-    <EditTextPreference
-        android:key="identityName"
-        android:title="@string/identity_name"
-        android:summary="@string/summary_name"
-        android:icon="@drawable/ic_person"/>
+    <PreferenceCategory android:title="@string/identity">
 
-    <Preference
-        android:key="identityPassword"
-        android:title="@string/preference_password"
-        android:summary="@string/summary_password"
-        android:icon="@drawable/ic_lock"/>
+        <EditTextPreference
+            android:key="identityName"
+            android:title="@string/identity_name"
+            android:summary="@string/summary_name"
+            android:icon="@drawable/ic_person"/>
 
-    <Preference
-        android:key="deleteIdentity"
-        android:title="@string/delete_identity"
-        android:summary="@string/summary_delete_identity"
-        android:icon="@drawable/ic_delete_forever"/>
+        <Preference
+            android:key="identityPassword"
+            android:title="@string/preference_password"
+            android:summary="@string/summary_password"
+            android:icon="@drawable/ic_lock"/>
+
+        <Preference
+            android:key="deleteIdentity"
+            android:title="@string/delete_identity"
+            android:summary="@string/summary_delete_identity"
+            android:icon="@drawable/ic_delete_forever"/>
+
+        <Preference
+            android:key="fingerprint"
+            android:title="@string/identity_fingerprint"
+            android:icon="@drawable/ic_fingerprint"/>
+
+    </PreferenceCategory>
+
+    <PreferenceCategory android:title="@string/about">
+
+        <Preference
+            android:key="version"
+            android:icon="@drawable/ic_info"
+            android:title="@string/version"
+            android:summary="@string/versionName"/>
+
+    </PreferenceCategory>
 
 </PreferenceScreen>

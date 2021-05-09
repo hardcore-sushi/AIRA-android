@@ -1,14 +1,12 @@
 package sushi.hardcore.aira
 
-import android.content.ComponentName
-import android.content.Context
-import android.content.Intent
-import android.content.ServiceConnection
+import android.content.*
 import android.os.Bundle
 import android.os.IBinder
 import android.view.MenuItem
 import android.view.View
 import android.widget.EditText
+import android.widget.Toast
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.preference.EditTextPreference
@@ -97,6 +95,18 @@ class SettingsActivity: AppCompatActivity() {
                 }
                 false
             }
+            findPreference<Preference>("fingerprint")?.let { fingerprintPreference ->
+                val fingerprint = StringUtils.beautifyFingerprint(AIRADatabase.getIdentityFingerprint())
+                fingerprintPreference.summary = fingerprint
+                fingerprintPreference.setOnPreferenceClickListener {
+                    activity?.getSystemService(CLIPBOARD_SERVICE)?.let { service ->
+                        val clipboardManager = service as ClipboardManager
+                        clipboardManager.setPrimaryClip(ClipData.newPlainText("", fingerprint))
+                    }
+                    Toast.makeText(activity, R.string.fingerprint_copied, Toast.LENGTH_SHORT).show()
+                    false
+                }
+            }
         }
 
         private fun changePassword(context: Context, isIdentityProtected: Boolean, oldPasswordEditText: EditText, newPassword: ByteArray?) {
@@ -134,6 +144,5 @@ class SettingsActivity: AppCompatActivity() {
             .replace(R.id.settings_container, MySettingsFragment())
             .commit()
         supportActionBar?.setDisplayHomeAsUpEnabled(true)
-        binding.textFingerprint.text = StringUtils.beautifyFingerprint(AIRADatabase.getIdentityFingerprint())
     }
 }

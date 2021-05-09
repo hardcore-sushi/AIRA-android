@@ -60,7 +60,7 @@
     <string name="ask_send_single_file">Send %s (%s) to %s ?</string>
     <string name="ask_send_multiple_files">Send %d files to %s ?</string>
     <string name="share_label">Send with AIRA</string>
-    <string name="identity_fingerprint_label">Your identity\'s fingerprint:</string>
+    <string name="identity_fingerprint">Your identity\'s fingerprint:</string>
     <string name="fingerprint">Fingerprint:</string>
     <string name="ip">IP:</string>
     <string name="connection">Connection:</string>
@@ -76,4 +76,8 @@
     <string name="settings">Settings</string>
     <string name="log_out">Log out</string>
     <string name="loadFile_failed">File extraction failed</string>
+    <string name="fingerprint_copied">Fingerprint copied to clipboard</string>
+    <string name="identity">Identity</string>
+    <string name="about">About</string>
+    <string name="version">AIRA version</string>
 </resources>
