@@ -148,7 +148,7 @@ class ChatActivity : ServiceBoundActivity() {
                                     if (airaService.contacts.contains(sessionId)) {
                                         lastLoadedMessageOffset += 1
                                     }
-                                    airaService.isAppInBackground
+                                    !airaService.isAppInBackground
                                 } else {
                                     false
                                 }
@@ -204,17 +204,15 @@ class ChatActivity : ServiceBoundActivity() {
     override fun onCreateOptionsMenu(menu: Menu): Boolean {
         menuInflater.inflate(R.menu.chat_activity, menu)
         val contact = airaService.contacts[sessionId]
-        if (contact == null){
-            menu.findItem(R.id.delete_conversation).isVisible = false
-            menu.findItem(R.id.set_as_contact).isVisible = true
-            menu.findItem(R.id.remove_contact).isVisible = false
+        menu.findItem(R.id.delete_conversation).isVisible = contact != null
+        menu.findItem(R.id.set_as_contact).isVisible = contact == null
+        menu.findItem(R.id.remove_contact).isVisible = contact != null
+        if (contact == null) {
             menu.findItem(R.id.verify).isVisible = false
         } else {
-            menu.findItem(R.id.delete_conversation).isVisible = true
-            menu.findItem(R.id.set_as_contact).isVisible = false
-            menu.findItem(R.id.remove_contact).isVisible = true
             menu.findItem(R.id.verify).isVisible = !contact.verified
         }
+        menu.findItem(R.id.refresh_name).isEnabled = airaService.isOnline(sessionId)
         return true
     }
 
@@ -301,6 +299,10 @@ class ChatActivity : ServiceBoundActivity() {
                         }
                         .setNegativeButton(R.string.cancel, null)
                         .show()
+                true
+            }
+            R.id.refresh_name -> {
+                airaService.sendTo(sessionId, Protocol.askName())
                 true
             }
             else -> super.onOptionsItemSelected(item)

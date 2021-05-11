@@ -32,4 +32,9 @@
         android:icon="@drawable/ic_info"
         android:title="@string/details"/>
 
+    <item
+        android:id="@+id/refresh_name"
+        app:showAsAction="never"
+        android:title="@string/refresh_name"/>
+
 </menu>

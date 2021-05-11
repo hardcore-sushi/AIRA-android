@@ -421,7 +421,7 @@ class AIRAService : Service() {
     override fun onCreate() {
         HandlerThread("", THREAD_PRIORITY_BACKGROUND).apply {
             start()
-            serviceHandler = object : Handler(looper){
+            serviceHandler = object : Handler(looper) {
                 override fun handleMessage(msg: Message) {
                     try {
                         when (msg.what) {
@@ -438,15 +438,16 @@ class AIRAService : Service() {
                             }
                             MESSAGE_CONNECT_TO -> {
                                 msg.data.getString("ip")?.let { ip ->
-                                    try {
-                                        val socket = SocketChannel.open()
-                                        if (socket.connect(InetSocketAddress(ip, Constants.port))) {
-                                            handleNewSocket(socket, true)
+                                    Thread {
+                                        try {
+                                            val socket = SocketChannel.open()
+                                            if (socket.connect(InetSocketAddress(ip, Constants.port))) {
+                                                handleNewSocket(socket, true)
+                                            }
+                                        } catch (e: ConnectException) {
+                                            Log.w("Connect failed", "$ip: "+e.message)
                                         }
-                                    } catch (e: ConnectException) {
-                                        Log.w("Connect failed", e.message.toString())
-                                        return
-                                    }
+                                    }.start()
                                 }
                             }
                             MESSAGE_CANCEL_FILE_TRANSFER -> {
@@ -483,18 +484,18 @@ class AIRAService : Service() {
                     }
                 }
             }
-            val contactList = AIRADatabase.loadContacts()
-            if (contactList == null) {
-                contacts = HashMap(0)
-            } else {
-                contacts = HashMap(contactList.size)
-                for (contact in contactList) {
-                    contacts[sessionCounter] = contact
-                    if (!contact.seen) {
-                        notSeen.add(sessionCounter)
-                    }
-                    sessionCounter++
+        }
+        val contactList = AIRADatabase.loadContacts()
+        if (contactList == null) {
+            contacts = HashMap(0)
+        } else {
+            contacts = HashMap(contactList.size)
+            for (contact in contactList) {
+                contacts[sessionCounter] = contact
+                if (!contact.seen) {
+                    notSeen.add(sessionCounter)
                 }
+                sessionCounter++
             }
         }
     }
