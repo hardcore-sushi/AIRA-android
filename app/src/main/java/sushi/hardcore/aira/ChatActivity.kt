@@ -126,8 +126,6 @@ class ChatActivity : ServiceBoundActivity() {
                                 if (this@ChatActivity.sessionId == sessionId) {
                                     runOnUiThread {
                                         findViewById<ConstraintLayout>(R.id.bottom_panel).visibility = View.GONE
-                                        binding.buttonSend.setOnClickListener(null)
-                                        binding.buttonAttach.setOnClickListener(null)
                                     }
                                 }
                             }

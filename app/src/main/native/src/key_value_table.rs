@@ -28,4 +28,7 @@ impl<'a> KeyValueTable<'a> {
     pub fn update(&self, key: &str, value: &[u8]) -> Result<usize, Error> {
         self.db.execute(&format!("UPDATE {} SET value=? WHERE key=\"{}\"", self.table_name, key), params![value])
     }
+    /*pub fn upsert(&self, key: &str, value: &[u8]) -> Result<usize, Error> {
+        self.db.execute(&format!("INSERT INTO {} (key, value) VALUES(?1, ?2) ON CONFLICT(key) DO UPDATE SET value=?3", self.table_name), params![key, value, value])
+    }*/
 }

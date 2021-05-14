@@ -28,6 +28,16 @@
 
     </PreferenceCategory>
 
+    <PreferenceCategory android:title="@string/security">
+
+        <SwitchPreferenceCompat
+            android:key="psecPadding"
+            android:title="@string/use_psec_padding"
+            android:summary="@string/psec_padding_summary"
+            android:icon="@drawable/ic_blur"/>
+
+    </PreferenceCategory>
+
     <PreferenceCategory android:title="@string/about">
 
         <Preference

@@ -346,6 +346,24 @@ pub fn Java_sushi_hardcore_aira_AIRADatabase_changeName(env: JNIEnv, _: JClass, 
 
 #[allow(non_snake_case)]
 #[no_mangle]
+pub fn Java_sushi_hardcore_aira_AIRADatabase_getUsePadding(_: JNIEnv, _: JClass) -> jboolean {
+    bool_to_jboolean(loaded_identity.lock().unwrap().as_mut().unwrap().use_padding)
+}
+
+#[allow(non_snake_case)]
+#[no_mangle]
+pub fn Java_sushi_hardcore_aira_AIRADatabase_setUsePadding(_: JNIEnv, _: JClass, use_padding: jboolean) -> jboolean {
+    match loaded_identity.lock().unwrap().as_mut().unwrap().set_use_padding(jboolean_to_bool(use_padding)) {
+        Ok(_) => 1,
+        Err(e) => {
+            log_error(e);
+            0
+        }
+    }
+}
+
+#[allow(non_snake_case)]
+#[no_mangle]
 pub fn Java_sushi_hardcore_aira_AIRADatabase_getIdentityFingerprint(env: JNIEnv, _: JClass) -> jobject {
     **env.new_string(crypto::generate_fingerprint(&loaded_identity.lock().unwrap().as_ref().unwrap().get_public_key())).unwrap()
 }

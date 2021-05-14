@@ -12,8 +12,8 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.preference.EditTextPreference
 import androidx.preference.Preference
 import androidx.preference.PreferenceFragmentCompat
+import androidx.preference.SwitchPreferenceCompat
 import sushi.hardcore.aira.background_service.AIRAService
-import sushi.hardcore.aira.databinding.ActivityMainBinding
 import sushi.hardcore.aira.databinding.ActivitySettingsBinding
 import sushi.hardcore.aira.utils.StringUtils
 
@@ -22,20 +22,24 @@ class SettingsActivity: AppCompatActivity() {
         private lateinit var airaService: AIRAService
         override fun onCreatePreferences(savedInstanceState: Bundle?, rootKey: String?) {
             setPreferencesFromResource(R.xml.preferences, rootKey)
-            val identityName = findPreference<EditTextPreference>("identityName")
+            val identityNamePreference = findPreference<EditTextPreference>("identityName")
+            val paddingPreference = findPreference<SwitchPreferenceCompat>("psecPadding")
+            identityNamePreference?.isPersistent = false
+            paddingPreference?.isPersistent = false
             Intent(activity, AIRAService::class.java).also { serviceIntent ->
                 activity?.bindService(serviceIntent, object : ServiceConnection {
                     override fun onServiceConnected(name: ComponentName?, service: IBinder) {
                         val binder = service as AIRAService.AIRABinder
                         airaService = binder.getService()
-                        identityName?.text = airaService.identityName
+                        identityNamePreference?.text = airaService.identityName
+                        paddingPreference?.isChecked = airaService.usePadding
                     }
                     override fun onServiceDisconnected(name: ComponentName?) {}
                 }, Context.BIND_AUTO_CREATE)
             }
-            identityName?.setOnPreferenceChangeListener { _, newValue ->
+            identityNamePreference?.setOnPreferenceChangeListener { _, newValue ->
                 if (airaService.changeName(newValue as String)) {
-                    identityName.text = newValue
+                    identityNamePreference.text = newValue
                 }
                 false
             }
@@ -106,6 +110,11 @@ class SettingsActivity: AppCompatActivity() {
                     Toast.makeText(activity, R.string.fingerprint_copied, Toast.LENGTH_SHORT).show()
                     false
                 }
+            }
+            paddingPreference?.setOnPreferenceChangeListener { _, checked ->
+                airaService.usePadding = checked as Boolean
+                AIRADatabase.setUsePadding(checked)
+                true
             }
         }
 

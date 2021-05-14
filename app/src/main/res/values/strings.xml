@@ -81,4 +81,7 @@
     <string name="about">About</string>
     <string name="version">AIRA version</string>
     <string name="refresh_name">Refresh name</string>
+    <string name="security">Security</string>
+    <string name="use_psec_padding">Use PSEC padding</string>
+    <string name="psec_padding_summary">PSEC padding obfuscates the length of your messages but uses more network bandwidth.</string>
 </resources>

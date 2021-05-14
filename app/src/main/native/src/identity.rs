@@ -20,6 +20,7 @@ impl<'a> DBKeys {
     pub const KEYPAIR: &'a str = "keypair";
     pub const SALT: &'a str = "salt";
     pub const MASTER_KEY: &'a str = "master_key";
+    pub const USE_PADDING: &'a str = "use_padding";
 }
 
 fn bool_to_byte(b: bool) -> u8 {
@@ -44,7 +45,8 @@ struct EncryptedIdentity {
     name: String,
     encrypted_keypair: Vec<u8>,
     salt: Vec<u8>,
-    encrypted_master_key: Vec<u8>
+    encrypted_master_key: Vec<u8>,
+    encrypted_use_padding: Vec<u8>,
 }
 
 pub struct Contact {
@@ -59,6 +61,7 @@ pub struct Identity {
     pub name: String,
     keypair: Keypair,
     pub master_key: [u8; crypto::MASTER_KEY_LEN],
+    pub use_padding: bool,
     database_folder: String,
 }
 
@@ -334,6 +337,13 @@ impl Identity {
         result
     }
 
+    pub fn set_use_padding(&mut self, use_padding: bool) -> Result<usize, rusqlite::Error> {
+        self.use_padding = use_padding;
+        let db = KeyValueTable::new(&self.get_database_path(), MAIN_TABLE)?;
+        let encrypted_use_padding = crypto::encrypt_data(&[bool_to_byte(use_padding)], &self.master_key).unwrap();
+        db.update(DBKeys::USE_PADDING, &encrypted_use_padding)
+    }
+
     pub fn zeroize(&mut self){
         self.master_key.zeroize();
         self.keypair.secret.zeroize();
@@ -345,11 +355,13 @@ impl Identity {
         let encrypted_keypair = db.get(DBKeys::KEYPAIR)?;
         let salt = db.get(DBKeys::SALT)?;
         let encrypted_master_key = db.get(DBKeys::MASTER_KEY)?;
+        let encrypted_use_padding = db.get(DBKeys::USE_PADDING)?;
         Ok(EncryptedIdentity {
             name: std::str::from_utf8(&name).unwrap().to_owned(),
             encrypted_keypair,
             salt,
             encrypted_master_key,
+            encrypted_use_padding,
         })
     }
 
@@ -375,12 +387,21 @@ impl Identity {
                 };
                 match crypto::decrypt_data(&encrypted_identity.encrypted_keypair, &master_key) {
                     Ok(keypair) => {
-                        Ok(Identity{
-                            name: encrypted_identity.name,
-                            keypair: Keypair::from_bytes(&keypair[..]).unwrap(),
-                            master_key: master_key,
-                            database_folder: database_folder,
-                        })
+                        match crypto::decrypt_data(&encrypted_identity.encrypted_use_padding, &master_key) {
+                            Ok(use_padding) => {
+                                Ok(Identity{
+                                    name: encrypted_identity.name,
+                                    keypair: Keypair::from_bytes(&keypair[..]).unwrap(),
+                                    master_key,
+                                    use_padding: byte_to_bool(use_padding[0]).unwrap(),
+                                    database_folder: database_folder,
+                                })
+                            }
+                            Err(e) => {
+                                print_error!(e);
+                                Err(String::from(DATABASE_CORRUPED_ERROR))
+                            }
+                        }
                     }
                     Err(e) => {
                         print_error!(e);
@@ -418,11 +439,13 @@ impl Identity {
             salt
         };
         db.set(DBKeys::SALT, &salt)?;
-
+        let encrypted_use_padding = crypto::encrypt_data(&[bool_to_byte(true)], &master_key).unwrap();
+        db.set(DBKeys::USE_PADDING, &encrypted_use_padding)?;
         Ok(Identity {
             name: name.to_owned(),
             keypair,
             master_key,
+            use_padding: true,
             database_folder
         })
     }

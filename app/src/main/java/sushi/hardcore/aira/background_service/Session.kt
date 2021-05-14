@@ -166,16 +166,20 @@ class Session(private val socket: SocketChannel, val outgoing: Boolean): Selecta
         return false
     }
 
-    private fun randomPad(input: ByteArray): ByteArray {
+    private fun pad(input: ByteArray, usePadding: Boolean): ByteArray {
         val encodedLen = ByteBuffer.allocate(MESSAGE_LEN_LEN).putInt(input.size).array()
-        val msgLen = input.size + MESSAGE_LEN_LEN
-        var len = 1000
-        while (len < msgLen) {
-            len *= 2
+        return if (usePadding) {
+            val msgLen = input.size + MESSAGE_LEN_LEN
+            var len = 1000
+            while (len < msgLen) {
+                len *= 2
+            }
+            val padding = ByteArray(len-msgLen)
+            prng.nextBytes(padding)
+            encodedLen + input + padding
+        } else {
+            encodedLen + input
         }
-        val padding = ByteArray(len-msgLen)
-        prng.nextBytes(padding)
-        return encodedLen + input + padding
     }
 
     private fun unpad(input: ByteArray): ByteArray {
@@ -190,8 +194,8 @@ class Session(private val socket: SocketChannel, val outgoing: Boolean): Selecta
         }
     }
 
-    fun encrypt(plainText: ByteArray): ByteArray {
-        val padded = randomPad(plainText)
+    fun encrypt(plainText: ByteArray, usePadding: Boolean): ByteArray {
+        val padded = pad(plainText, usePadding)
         val rawMsgLen = ByteBuffer.allocate(MESSAGE_LEN_LEN).putInt(padded.size).array()
         val nonce = ivToNonce(applicationKeys.localIv, localCounter)
         localCounter++
@@ -200,8 +204,8 @@ class Session(private val socket: SocketChannel, val outgoing: Boolean): Selecta
         return rawMsgLen+localCipher.doFinal(padded)
     }
 
-    fun encryptAndSend(plainText: ByteArray) {
-        writeAll(encrypt(plainText))
+    fun encryptAndSend(plainText: ByteArray, usePadding: Boolean) {
+        writeAll(encrypt(plainText, usePadding))
     }
 
     fun ByteArray.toHexString() = joinToString("") { "%02x".format(it) }

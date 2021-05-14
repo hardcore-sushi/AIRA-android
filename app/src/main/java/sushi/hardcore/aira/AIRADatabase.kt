@@ -19,6 +19,8 @@ object AIRADatabase {
     external fun clearTemporaryFiles(): Int
     external fun getIdentityPublicKey(): ByteArray
     external fun getIdentityFingerprint(): String
+    external fun getUsePadding(): Boolean
+    external fun setUsePadding(usePadding: Boolean): Boolean
     external fun changeName(newName: String): Boolean
     external fun changePassword(databaseFolder: String, oldPassword: ByteArray?, newPassword: ByteArray?): Boolean
 }

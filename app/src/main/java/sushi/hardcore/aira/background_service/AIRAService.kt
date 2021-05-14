@@ -48,6 +48,7 @@ class AIRAService : Service() {
     private val sendFileTransfers = mutableMapOf<Int, FilesSender>()
     val receiveFileTransfers = mutableMapOf<Int, FilesReceiver>()
     lateinit var contacts: HashMap<Int, Contact>
+    var usePadding = true
     private lateinit var serviceHandler: Handler
     private lateinit var notificationManager: NotificationManagerCompat
     private lateinit var nsdManager: NsdManager
@@ -308,7 +309,7 @@ class AIRAService : Service() {
                             sessionIdByKey[key] = sessionId
                             uiCallbacks?.onNewSession(sessionId, session.ip)
                             if (!isContact(sessionId)) {
-                                session.encryptAndSend(Protocol.askName())
+                                session.encryptAndSend(Protocol.askName(), usePadding)
                             }
                         } else {
                             session.close()
@@ -412,7 +413,7 @@ class AIRAService : Service() {
     }
 
     private fun sendAndSave(sessionId: Int, msg: ByteArray) {
-        sessions[sessionId]?.encryptAndSend(msg)
+        sessions[sessionId]?.encryptAndSend(msg, usePadding)
         if (msg[0] == Protocol.MESSAGE) {
             saveMsg(sessionId, msg)
         }
@@ -460,7 +461,7 @@ class AIRAService : Service() {
                                 identityName?.let {
                                     for (session in sessions.values) {
                                         try {
-                                            session.encryptAndSend(Protocol.tellName(it))
+                                            session.encryptAndSend(Protocol.tellName(it), usePadding)
                                         } catch (e: SocketException) {
                                             e.printStackTrace()
                                         }
@@ -498,6 +499,7 @@ class AIRAService : Service() {
                 sessionCounter++
             }
         }
+        usePadding = AIRADatabase.getUsePadding()
     }
 
     private fun encryptNextChunk(session: Session, filesSender: FilesSender) {
@@ -510,7 +512,7 @@ class AIRAService : Service() {
         }
         filesSender.nextChunk = if (read > 0) {
             filesSender.lastChunkSizes.add(nextChunk.size)
-            session.encrypt(nextChunk)
+            session.encrypt(nextChunk, usePadding)
         } else {
             null
         }
@@ -540,7 +542,7 @@ class AIRAService : Service() {
             receiveFileTransfers.remove(sessionId)!!.fileTransferNotification.onAborted()
         }
         if (outgoing) {
-            session.encryptAndSend(Protocol.abortFilesTransfer())
+            session.encryptAndSend(Protocol.abortFilesTransfer(), usePadding)
         }
     }
 
@@ -574,7 +576,7 @@ class AIRAService : Service() {
                                             when (buffer[0]) {
                                                 Protocol.ASK_NAME -> {
                                                     identityName?.let { name ->
-                                                        session.encryptAndSend(Protocol.tellName(name))
+                                                        session.encryptAndSend(Protocol.tellName(name), usePadding)
                                                     }
                                                 }
                                                 Protocol.TELL_NAME -> {
@@ -603,7 +605,7 @@ class AIRAService : Service() {
                                                             val chunk = buffer.sliceArray(1 until buffer.size)
                                                             try {
                                                                 outputStream.write(chunk)
-                                                                session.encryptAndSend(Protocol.ackChunk())
+                                                                session.encryptAndSend(Protocol.ackChunk(), usePadding)
                                                                 file.transferred += chunk.size
                                                                 if (file.transferred >= file.fileSize) {
                                                                     outputStream.close()
