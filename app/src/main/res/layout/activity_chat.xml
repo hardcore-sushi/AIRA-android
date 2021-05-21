@@ -6,13 +6,13 @@
     xmlns:app="http://schemas.android.com/apk/res-auto"
     tools:context=".ChatActivity">
 
+    <include layout="@layout/profile_toolbar" android:id="@+id/toolbar"/>
+
     <androidx.recyclerview.widget.RecyclerView
         android:id="@+id/recycler_chat"
         android:layout_width="match_parent"
         android:layout_height="0dp"
-        android:paddingHorizontal="20dp"
-        android:paddingBottom="20dp"
-        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/toolbar"
         app:layout_constraintBottom_toTopOf="@id/bottom_panel"/>
 
     <androidx.constraintlayout.widget.ConstraintLayout
@@ -20,7 +20,9 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         app:layout_constraintBottom_toBottomOf="parent"
-        android:visibility="gone">
+        android:visibility="gone"
+        android:paddingVertical="5dp"
+        android:background="@color/primary">
 
         <ImageButton
             android:id="@+id/button_attach"

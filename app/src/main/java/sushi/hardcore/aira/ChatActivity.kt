@@ -1,16 +1,17 @@
 package sushi.hardcore.aira
 
 import android.content.ComponentName
+import android.content.Context
 import android.content.ServiceConnection
 import android.os.Bundle
 import android.os.IBinder
 import android.view.Menu
 import android.view.MenuItem
 import android.view.View
+import android.view.inputmethod.InputMethodManager
 import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AlertDialog
-import androidx.constraintlayout.widget.ConstraintLayout
 import androidx.core.view.updatePadding
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
@@ -32,14 +33,7 @@ class ChatActivity : ServiceBoundActivity() {
     private var lastLoadedMessageOffset = 0
     private val filePicker = registerForActivityResult(ActivityResultContracts.GetMultipleContents()) { uris ->
         if (isServiceInitialized() && uris.size > 0) {
-            airaService.sendFilesFromUris(sessionId, uris)?.let { msgs ->
-                for (msg in msgs) {
-                    chatAdapter.newMessage(ChatItem(true, msg))
-                    if (airaService.contacts.contains(sessionId)) {
-                        lastLoadedMessageOffset += 1
-                    }
-                }
-            }
+            airaService.sendFilesFromUris(sessionId, uris)
         }
     }
     
@@ -47,13 +41,15 @@ class ChatActivity : ServiceBoundActivity() {
         super.onCreate(savedInstanceState)
         binding = ActivityChatBinding.inflate(layoutInflater)
         setContentView(binding.root)
-        supportActionBar?.setDisplayHomeAsUpEnabled(true)
 
         sessionId = intent.getIntExtra("sessionId", -1)
         if (sessionId != -1) {
             intent.getStringExtra("sessionName")?.let { name ->
                 sessionName = name
-                title = name
+                setSupportActionBar(binding.toolbar.toolbar)
+                binding.toolbar.textAvatar.setLetterFrom(name)
+                binding.toolbar.title.text = name
+                supportActionBar?.setDisplayHomeAsUpEnabled(true)
 
                 chatAdapter = ChatAdapter(this@ChatActivity, ::onClickSaveFile)
                 binding.recyclerChat.apply {
@@ -112,7 +108,7 @@ class ChatActivity : ServiceBoundActivity() {
                         }
                         binding.recyclerChat.smoothScrollToPosition(chatAdapter.itemCount)
                         val showBottomPanel = {
-                            findViewById<ConstraintLayout>(R.id.bottom_panel).visibility = View.VISIBLE
+                            binding.bottomPanel.visibility = View.VISIBLE
                         }
                         airaService.uiCallbacks = object : AIRAService.UiCallbacks {
                             override fun onNewSession(sessionId: Int, ip: String) {
@@ -125,7 +121,9 @@ class ChatActivity : ServiceBoundActivity() {
                             override fun onSessionDisconnect(sessionId: Int) {
                                 if (this@ChatActivity.sessionId == sessionId) {
                                     runOnUiThread {
-                                        findViewById<ConstraintLayout>(R.id.bottom_panel).visibility = View.GONE
+                                        val inputManager = getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager
+                                        inputManager.hideSoftInputFromWindow(binding.editMessage.windowToken, 0)
+                                        binding.bottomPanel.visibility = View.GONE
                                     }
                                 }
                             }

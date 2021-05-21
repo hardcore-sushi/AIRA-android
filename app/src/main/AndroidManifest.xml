@@ -28,8 +28,8 @@
             </intent-filter>
         </receiver>
 
-        <activity android:name=".ChatActivity"/>
-        <activity android:name=".MainActivity">
+        <activity android:name=".ChatActivity" android:theme="@style/Theme.AIRA.NoActionBar"/>
+        <activity android:name=".MainActivity" android:theme="@style/Theme.AIRA.NoActionBar">
             <intent-filter android:label="@string/share_label">
                 <action android:name="android.intent.action.SEND"/>
                 <action android:name="android.intent.action.SEND_MULTIPLE"/>

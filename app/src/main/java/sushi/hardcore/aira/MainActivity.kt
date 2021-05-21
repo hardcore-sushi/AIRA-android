@@ -79,7 +79,11 @@ class MainActivity : ServiceBoundActivity() {
         setContentView(binding.root)
 
         val identityName = intent.getStringExtra("identityName")
-        identityName?.let { title = it }
+        identityName?.let {
+            setSupportActionBar(binding.toolbar.toolbar)
+            binding.toolbar.textAvatar.setLetterFrom(it)
+            binding.toolbar.title.text = it
+        }
 
         val openedToShareFile = intent.action == Intent.ACTION_SEND || intent.action == Intent.ACTION_SEND_MULTIPLE
 

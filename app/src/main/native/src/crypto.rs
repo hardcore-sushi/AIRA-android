@@ -1,14 +1,12 @@
-use std::convert::TryInto;
+use std::{convert::TryInto, fmt::Display};
 use hkdf::Hkdf;
 use sha2::Sha384;
-use hmac::{Hmac, Mac, NewMac};
+use hmac::{Hmac, NewMac, Mac};
 use scrypt::{scrypt, Params};
-use rand_8::{RngCore, rngs::OsRng};
+use rand::{RngCore, rngs::OsRng};
 use aes_gcm::{aead::Aead, NewAead, Nonce};
 use aes_gcm_siv::Aes256GcmSiv;
 use zeroize::Zeroize;
-use strum_macros::Display;
-use crate::utils::*;
 
 pub const HASH_OUTPUT_LEN: usize = 48; //SHA384
 const KEY_LEN: usize = 16;
@@ -33,6 +31,26 @@ fn hkdf_expand_label(key: &[u8], label: &str, context: Option<&[u8]>, okm: &mut 
     };    
 }
 
+fn get_labels(handshake: bool, i_am_bob: bool) -> (String, String) {
+    let mut label = if handshake {
+        "handshake"
+    } else {
+        "application"
+    }.to_owned();
+    label += "_i_am_";
+    let local_label = label.clone() + if i_am_bob {
+        "bob"
+    } else {
+        "alice"
+    };
+    let peer_label = label + if i_am_bob {
+        "alice"
+    } else {
+        "bob"
+    };
+    (local_label, peer_label)
+}
+
 pub struct HandshakeKeys {
     pub local_key: [u8; KEY_LEN],
     pub local_iv: [u8; IV_LEN],
@@ -47,11 +65,11 @@ impl HandshakeKeys {
     pub fn derive_keys(shared_secret: [u8; 32], handshake_hash: [u8; HASH_OUTPUT_LEN], i_am_bob: bool) -> HandshakeKeys {
         let (handshake_secret, _) = Hkdf::<Sha384>::extract(None, &shared_secret);
 
-        let local_label = "handshake".to_owned() + if i_am_bob {"i_am_bob"} else {"i_am_alice"};
+        let (local_label, peer_label) = get_labels(true, i_am_bob);
+
         let mut local_handshake_traffic_secret = [0; HASH_OUTPUT_LEN];
         hkdf_expand_label(handshake_secret.as_slice(), &local_label, Some(&handshake_hash), &mut local_handshake_traffic_secret);
 
-        let peer_label = "handshake".to_owned() + if i_am_bob {"i_am_alice"} else {"i_am_bob"};
         let mut peer_handshake_traffic_secret = [0; HASH_OUTPUT_LEN];
         hkdf_expand_label(handshake_secret.as_slice(), &peer_label, Some(&handshake_hash), &mut peer_handshake_traffic_secret);
 
@@ -72,7 +90,7 @@ impl HandshakeKeys {
             peer_key: peer_handshake_key,
             peer_iv: peer_handshake_iv,
             peer_handshake_traffic_secret: peer_handshake_traffic_secret,
-            handshake_secret: to_array_48(handshake_secret.as_slice())
+            handshake_secret: handshake_secret.as_slice().try_into().unwrap(),
         }
     }
 }
@@ -90,11 +108,11 @@ impl ApplicationKeys {
         hkdf_expand_label(&handshake_secret, "derived", None, &mut derived_secret);
         let (master_secret, _) = Hkdf::<Sha384>::extract(Some(&derived_secret), b"");
 
-        let local_label = "application".to_owned() + if i_am_bob {"i_am_bob"} else {"i_am_alice"};
+        let (local_label, peer_label) = get_labels(false, i_am_bob);
+
         let mut local_application_traffic_secret = [0; HASH_OUTPUT_LEN];
         hkdf_expand_label(&master_secret, &local_label, Some(&handshake_hash), &mut local_application_traffic_secret);
     
-        let peer_label = "application".to_owned() + if i_am_bob {"i_am_alice"} else {"i_am_bob"};
         let mut peer_application_traffic_secret = [0; HASH_OUTPUT_LEN];
         hkdf_expand_label(&master_secret, &peer_label, Some(&handshake_hash), &mut peer_application_traffic_secret);
 
@@ -161,10 +179,19 @@ pub fn encrypt_data(data: &[u8], master_key: &[u8]) -> Result<Vec<u8>, CryptoErr
     Ok(cipher_text)
 }
 
-#[derive(Display, Debug, PartialEq, Eq)]
+#[derive(Debug, PartialEq, Eq)]
 pub enum CryptoError {
     DecryptionFailed,
     InvalidLength
+}
+
+impl Display for CryptoError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(match self {
+            CryptoError::DecryptionFailed => "Decryption failed",
+            CryptoError::InvalidLength => "Invalid length",
+        })
+    }
 }
 
 pub fn decrypt_data(data: &[u8], master_key: &[u8]) -> Result<Vec<u8>, CryptoError> {

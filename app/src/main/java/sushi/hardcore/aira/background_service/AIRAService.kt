@@ -135,7 +135,7 @@ class AIRAService : Service() {
         }
     }
 
-    fun sendFilesFromUris(sessionId: Int, uris: List<Uri>): List<ByteArray>? {
+    fun sendFilesFromUris(sessionId: Int, uris: List<Uri>) {
         val files = mutableListOf<SendFile>()
         var useLargeFileTransfer = false
         for (uri in uris) {
@@ -146,30 +146,22 @@ class AIRAService : Service() {
                 }
             }
         }
-        return if (useLargeFileTransfer) {
+        if (useLargeFileTransfer) {
             sendLargeFilesTo(sessionId, files)
-            null
         } else {
-            val msgs = mutableListOf<ByteArray>()
             for (file in files) {
-                sendSmallFileTo(sessionId, file)?.let { msg ->
-                    msgs.add(msg)
-                }
+                sendSmallFileTo(sessionId, file)
             }
-            msgs
         }
     }
 
-    private fun sendSmallFileTo(sessionId: Int, sendFile: SendFile): ByteArray? {
+    private fun sendSmallFileTo(sessionId: Int, sendFile: SendFile) {
         val buffer = sendFile.inputStream.readBytes()
         sendFile.inputStream.close()
         sendTo(sessionId, Protocol.newFile(sendFile.fileName, buffer))
         AIRADatabase.storeFile(contacts[sessionId]?.uuid, buffer)?.let { rawFileUuid ->
-            val msg = byteArrayOf(Protocol.FILE) + rawFileUuid + sendFile.fileName.toByteArray()
-            saveMsg(sessionId, msg)
-            return msg
+            saveMsg(sessionId, byteArrayOf(Protocol.FILE) + rawFileUuid + sendFile.fileName.toByteArray())
         }
-        return null
     }
 
     private fun sendLargeFilesTo(sessionId: Int, files: MutableList<SendFile>) {

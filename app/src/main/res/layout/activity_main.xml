@@ -1,79 +1,93 @@
 <?xml version="1.0" encoding="utf-8"?>
-<androidx.swiperefreshlayout.widget.SwipeRefreshLayout xmlns:android="http://schemas.android.com/apk/res/android"
-    android:id="@+id/refresher"
+<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     tools:context=".MainActivity">
 
-    <androidx.constraintlayout.widget.ConstraintLayout
+    <include layout="@layout/profile_toolbar" android:id="@+id/toolbar"/>
+
+    <androidx.swiperefreshlayout.widget.SwipeRefreshLayout
+        android:id="@+id/refresher"
         android:layout_width="match_parent"
-        android:layout_height="match_parent">
-
-        <TextView
-            android:id="@+id/text_online_sessions"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:text="@string/online_peers"
-            style="@style/Label"
-            app:layout_constraintTop_toTopOf="parent"/>
-
-        <ListView
-            android:id="@+id/online_sessions"
-            android:layout_width="match_parent"
-            android:layout_height="0dp"
-            app:layout_constraintTop_toBottomOf="@id/text_online_sessions"/>
-
-        <TextView
-            android:id="@+id/text_offline_sessions"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:text="@string/offline_contacts"
-            style="@style/Label"
-            app:layout_constraintTop_toBottomOf="@id/online_sessions"/>
-
-        <ListView
-            android:id="@+id/offline_sessions"
-            android:layout_width="match_parent"
-            android:layout_height="0dp"
-            app:layout_constraintTop_toBottomOf="@id/text_offline_sessions"
-            app:layout_constraintBottom_toTopOf="@+id/bottom_panel"/>
+        android:layout_height="0dp"
+        app:layout_constraintTop_toBottomOf="@id/toolbar"
+        app:layout_constraintBottom_toBottomOf="parent">
 
         <androidx.constraintlayout.widget.ConstraintLayout
-            android:id="@+id/bottom_panel"
             android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:orientation="horizontal"
-            android:layout_marginHorizontal="10dp"
-            app:layout_constraintBottom_toBottomOf="parent">
+            android:layout_height="match_parent">
 
-            <EditText
-                android:id="@+id/edit_peer_ip"
-                android:layout_width="0dp"
+            <TextView
+                android:id="@+id/text_online_sessions"
+                android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:inputType="text"
-                android:maxLines="1"
-                android:imeOptions="actionGo"
-                android:hint="@string/add_peer_ip"
-                app:layout_constraintTop_toTopOf="parent"
-                app:layout_constraintBottom_toBottomOf="parent"
-                app:layout_constraintStart_toStartOf="parent"
-                app:layout_constraintEnd_toStartOf="@id/button_show_ip"/>
+                android:text="@string/online_peers"
+                style="@style/Label"
+                app:layout_constraintTop_toTopOf="parent"/>
 
-            <ImageButton
-                android:id="@+id/button_show_ip"
-                android:layout_width="@dimen/image_button_size"
-                android:layout_height="@dimen/image_button_size"
-                android:src="@drawable/ic_info"
-                style="@style/ImageButton"
-                app:layout_constraintTop_toTopOf="parent"
+            <ListView
+                android:id="@+id/online_sessions"
+                android:layout_width="match_parent"
+                android:layout_height="0dp"
+                android:divider="@color/transparent"
+                app:layout_constraintTop_toBottomOf="@id/text_online_sessions"/>
+
+            <TextView
+                android:id="@+id/text_offline_sessions"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="@string/offline_contacts"
+                style="@style/Label"
+                app:layout_constraintTop_toBottomOf="@id/online_sessions"/>
+
+            <ListView
+                android:id="@+id/offline_sessions"
+                android:layout_width="match_parent"
+                android:layout_height="0dp"
+                android:divider="@color/transparent"
+                app:layout_constraintTop_toBottomOf="@id/text_offline_sessions"
+                app:layout_constraintBottom_toTopOf="@+id/bottom_panel"/>
+
+            <androidx.constraintlayout.widget.ConstraintLayout
+                android:id="@+id/bottom_panel"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
                 app:layout_constraintBottom_toBottomOf="parent"
-                app:layout_constraintStart_toEndOf="@id/edit_peer_ip"
-                app:layout_constraintEnd_toEndOf="parent"/>
+                android:paddingHorizontal="10dp"
+                android:paddingVertical="5dp"
+                android:background="@color/primary">
+
+                <EditText
+                    android:id="@+id/edit_peer_ip"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:inputType="text"
+                    android:maxLines="1"
+                    android:imeOptions="actionGo"
+                    android:hint="@string/add_peer_ip"
+                    app:layout_constraintTop_toTopOf="parent"
+                    app:layout_constraintBottom_toBottomOf="parent"
+                    app:layout_constraintStart_toStartOf="parent"
+                    app:layout_constraintEnd_toStartOf="@id/button_show_ip"/>
+
+                <ImageButton
+                    android:id="@+id/button_show_ip"
+                    android:layout_width="@dimen/image_button_size"
+                    android:layout_height="@dimen/image_button_size"
+                    android:src="@drawable/ic_info"
+                    style="@style/ImageButton"
+                    app:layout_constraintTop_toTopOf="parent"
+                    app:layout_constraintBottom_toBottomOf="parent"
+                    app:layout_constraintStart_toEndOf="@id/edit_peer_ip"
+                    app:layout_constraintEnd_toEndOf="parent"/>
+
+            </androidx.constraintlayout.widget.ConstraintLayout>
 
         </androidx.constraintlayout.widget.ConstraintLayout>
 
-    </androidx.constraintlayout.widget.ConstraintLayout>
+    </androidx.swiperefreshlayout.widget.SwipeRefreshLayout>
 
-</androidx.swiperefreshlayout.widget.SwipeRefreshLayout>
+</androidx.constraintlayout.widget.ConstraintLayout>

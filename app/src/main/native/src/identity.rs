@@ -256,56 +256,57 @@ impl Identity {
                 match db.prepare(&format!("SELECT count(*) FROM \"{}\"", contact_uuid)) {
                     Ok(mut stmt) => {
                         let mut rows = stmt.query([]).unwrap();
-                        let row = rows.next().unwrap();
-                        if row.is_some() {
-                            let total: usize = row.unwrap().get(0).unwrap();
-                            if offset >= total {
-                                print_error!("Offset larger than total numbers of rows");
-                                None
-                            } else {
-                                if offset+count >= total {
-                                    count = total-offset;
-                                }
-                                match db.prepare(&format!("SELECT outgoing, data FROM \"{}\" LIMIT {} OFFSET {}", contact_uuid, count, total-offset-count)) {
-                                    Ok(mut stmt) => {
-                                        let mut rows = stmt.query([]).unwrap();
-                                        let mut msgs = Vec::new();
-                                        while let Some(row) = rows.next().unwrap() {
-                                            let encrypted_outgoing: Vec<u8> = row.get(0).unwrap();
-                                            match crypto::decrypt_data(encrypted_outgoing.as_slice(), &self.master_key){
-                                                Ok(outgoing) => {
-                                                    match byte_to_bool(outgoing[0]) {
-                                                        Ok(outgoing) => {
-                                                            let encrypted_data: Vec<u8> = row.get(1).unwrap();
-                                                            match crypto::decrypt_data(encrypted_data.as_slice(), &self.master_key) {
-                                                                Ok(data) => {
-                                                                    msgs.push(
-                                                                        (
-                                                                            outgoing,
-                                                                            data
+                        match rows.next() {
+                            Ok(row) => if row.is_some() {
+                                let total: usize = row.unwrap().get(0).unwrap();
+                                if offset >= total {
+                                    None
+                                } else {
+                                    if offset+count >= total {
+                                        count = total-offset;
+                                    }
+                                    match db.prepare(&format!("SELECT outgoing, data FROM \"{}\" LIMIT {} OFFSET {}", contact_uuid, count, total-offset-count)) {
+                                        Ok(mut stmt) => {
+                                            let mut rows = stmt.query([]).unwrap();
+                                            let mut msgs = Vec::new();
+                                            while let Some(row) = rows.next().unwrap() {
+                                                let encrypted_outgoing: Vec<u8> = row.get(0).unwrap();
+                                                match crypto::decrypt_data(encrypted_outgoing.as_slice(), &self.master_key){
+                                                    Ok(outgoing) => {
+                                                        match byte_to_bool(outgoing[0]) {
+                                                            Ok(outgoing) => {
+                                                                let encrypted_data: Vec<u8> = row.get(1).unwrap();
+                                                                match crypto::decrypt_data(encrypted_data.as_slice(), &self.master_key) {
+                                                                    Ok(data) => {
+                                                                        msgs.push(
+                                                                            (
+                                                                                outgoing,
+                                                                                data
+                                                                            )
                                                                         )
-                                                                    )
-                                                                },
-                                                                Err(e) => print_error!(e)
+                                                                    },
+                                                                    Err(e) => print_error!(e)
+                                                                }
                                                             }
+                                                            Err(_) => {}
                                                         }
-                                                        Err(_) => {}
+                                                        
                                                     }
-                                                    
+                                                    Err(e) => print_error!(e)
                                                 }
-                                                Err(e) => print_error!(e)
                                             }
+                                            Some(msgs)
                                         }
-                                        Some(msgs)
-                                    }
-                                    Err(e) => {
-                                        print_error!(e);
-                                        None
+                                        Err(e) => {
+                                            print_error!(e);
+                                            None
+                                        }
                                     }
                                 }
+                            } else {
+                                None
                             }
-                        } else {
-                            None
+                            Err(_) => None
                         }
                     }
                     Err(e) => {

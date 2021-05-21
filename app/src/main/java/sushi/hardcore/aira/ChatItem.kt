@@ -4,8 +4,14 @@ import sushi.hardcore.aira.background_service.Protocol
 
 class ChatItem(val outgoing: Boolean, val data: ByteArray) {
     companion object {
-        const val MESSAGE = 0
-        const val FILE = 1
+        const val OUTGOING_MESSAGE = 0
+        const val INCOMING_MESSAGE = 1
+        const val OUTGOING_FILE = 2
+        const val INCOMING_FILE = 3
     }
-    val itemType = if (data[0] == Protocol.MESSAGE) { MESSAGE } else { FILE }
+    val itemType = if (data[0] == Protocol.MESSAGE) {
+        if (outgoing) OUTGOING_MESSAGE else INCOMING_MESSAGE
+    } else {
+        if (outgoing) OUTGOING_FILE else INCOMING_FILE
+    }
 }
