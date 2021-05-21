@@ -235,6 +235,17 @@ class ChatActivity : ServiceBoundActivity() {
                         R.string.incoming
                     })
                 }
+                dialogBinding.textIsContact.text = getString(if (contact == null) {
+                    dialogBinding.fieldIsVerified.visibility = View.GONE
+                    R.string.no
+                } else {
+                    dialogBinding.textIsVerified.text = getString(if (contact.verified) {
+                        R.string.yes
+                    } else {
+                        R.string.no
+                    })
+                    R.string.yes
+                })
                 AlertDialog.Builder(this)
                         .setTitle(sessionName)
                         .setView(dialogBinding.root)

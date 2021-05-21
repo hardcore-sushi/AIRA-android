@@ -11,7 +11,101 @@
         android:layout_width="100dp"
         android:layout_height="100dp"
         app:textSize="20sp"
-        android:layout_gravity="center_horizontal"/>
+        android:layout_gravity="center_horizontal"
+        android:layout_marginBottom="10dp"/>
+
+    <LinearLayout
+        android:id="@+id/online_fields"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center_horizontal">
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="@string/peer_ip"
+                style="@style/Label"
+                android:textStyle="bold"/>
+
+            <TextView
+                android:id="@+id/text_ip"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="@dimen/field_value_margin_start"/>
+
+        </LinearLayout>
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center_horizontal">
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="@string/connection"
+                style="@style/Label"
+                android:textStyle="bold"/>
+
+            <TextView
+                android:id="@+id/text_outgoing"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="@dimen/field_value_margin_start"/>
+
+        </LinearLayout>
+
+    </LinearLayout>
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center_horizontal">
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="@string/is_contact"
+            style="@style/Label"
+            android:textStyle="bold"/>
+
+        <TextView
+            android:id="@+id/text_is_contact"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="@dimen/field_value_margin_start"/>
+
+    </LinearLayout>
+
+    <LinearLayout
+        android:id="@+id/field_is_verified"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center_horizontal">
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="@string/is_verified"
+            style="@style/Label"
+            android:textStyle="bold"/>
+
+        <TextView
+            android:id="@+id/text_is_verified"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="@dimen/field_value_margin_start"/>
+
+    </LinearLayout>
 
     <TextView
         android:layout_width="match_parent"
@@ -25,39 +119,5 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:textAlignment="center"/>
-
-    <LinearLayout
-        android:id="@+id/online_fields"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:orientation="vertical">
-
-        <TextView
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:text="@string/ip"
-            style="@style/Label"
-            android:textStyle="bold"/>
-
-        <TextView
-            android:id="@+id/text_ip"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:textAlignment="center"/>
-
-        <TextView
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:text="@string/connection"
-            style="@style/Label"
-            android:textStyle="bold"/>
-
-        <TextView
-            android:id="@+id/text_outgoing"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:textAlignment="center"/>
-
-    </LinearLayout>
 
 </LinearLayout>

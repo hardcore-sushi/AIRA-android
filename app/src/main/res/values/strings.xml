@@ -17,6 +17,7 @@
     <string name="file_saved">File saved !</string>
     <string name="enter_password">Enter your password:</string>
     <string name="yes">Yes</string>
+    <string name="no">No</string>
     <string name="warning">Warning !</string>
     <string name="ask_log_out">Do you really want to log out ? (You will no longer receive messages until you login again)</string>
     <string name="cancel">Cancel</string>
@@ -62,7 +63,7 @@
     <string name="share_label">Send with AIRA</string>
     <string name="identity_fingerprint">Your identity\'s fingerprint:</string>
     <string name="fingerprint">Fingerprint:</string>
-    <string name="ip">IP:</string>
+    <string name="peer_ip">Peer IP:</string>
     <string name="connection">Connection:</string>
     <string name="outgoing">Outgoing</string>
     <string name="incoming">Incoming</string>
@@ -84,4 +85,6 @@
     <string name="security">Security</string>
     <string name="use_psec_padding">Use PSEC padding</string>
     <string name="psec_padding_summary">PSEC padding obfuscates the length of your messages but uses more network bandwidth.</string>
+    <string name="is_contact">Is contact:</string>
+    <string name="is_verified">Is verified:</string>
 </resources>
