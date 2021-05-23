@@ -5,14 +5,12 @@ import android.graphics.Color
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
-import android.widget.BaseAdapter
-import android.widget.ImageView
-import android.widget.TextView
+import android.widget.*
 import androidx.core.content.ContextCompat
 import sushi.hardcore.aira.R
 import sushi.hardcore.aira.widgets.TextAvatar
 
-class SessionAdapter(val context: Context): BaseAdapter() {
+class SessionAdapter(private val context: Context): BaseAdapter() {
     private val sessions = mutableListOf<Session>()
     private val inflater: LayoutInflater = LayoutInflater.from(context)
     val selectedItems = mutableListOf<Int>()
@@ -52,11 +50,16 @@ class SessionAdapter(val context: Context): BaseAdapter() {
                 setImageDrawable(null)
             }
         }
-        view.findViewById<ImageView>(R.id.image_seen).visibility = if (currentSession.seen) {
+        view.findViewById<LinearLayout>(R.id.marker_not_seen).visibility = if (currentSession.seen) {
             View.GONE
         } else {
             View.VISIBLE
         }
+        view.findViewById<ImageView>(R.id.image_arrow).setColorFilter(ContextCompat.getColor(context, if (currentSession.seen) {
+            R.color.sessionArrow
+        } else {
+            R.color.secondary
+        }))
         view.setBackgroundColor(ContextCompat.getColor(context, if (selectedItems.contains(position)) {
            R.color.itemSelected
         } else {

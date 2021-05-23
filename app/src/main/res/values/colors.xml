@@ -11,4 +11,5 @@
     <color name="messageTextColor">#ffffff</color>
     <color name="itemSelected">#66666666</color>
     <color name="transparent">#00000000</color>
+    <color name="sessionArrow">#777777</color>
 </resources>

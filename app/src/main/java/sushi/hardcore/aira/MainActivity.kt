@@ -77,12 +77,11 @@ class MainActivity : ServiceBoundActivity() {
         super.onCreate(savedInstanceState)
         binding = ActivityMainBinding.inflate(layoutInflater)
         setContentView(binding.root)
+        setSupportActionBar(binding.toolbar.toolbar)
 
         val identityName = intent.getStringExtra("identityName")
         identityName?.let {
-            setSupportActionBar(binding.toolbar.toolbar)
-            binding.toolbar.textAvatar.setLetterFrom(it)
-            binding.toolbar.title.text = it
+            initToolbar(it)
         }
 
         val openedToShareFile = intent.action == Intent.ACTION_SEND || intent.action == Intent.ACTION_SEND_MULTIPLE
@@ -140,7 +139,7 @@ class MainActivity : ServiceBoundActivity() {
                 airaService.isAppInBackground = false
                 refreshSessions()
                 if (AIRAService.isServiceRunning) {
-                    title = airaService.identityName
+                    airaService.identityName?.let { initToolbar(it) }
                 } else {
                     airaService.identityName = identityName
                     startService(serviceIntent)
@@ -251,6 +250,11 @@ class MainActivity : ServiceBoundActivity() {
         } else {
             super.onBackPressed()
         }
+    }
+
+    private fun initToolbar(identityName: String) {
+        binding.toolbar.textAvatar.setLetterFrom(identityName)
+        binding.toolbar.title.text = identityName
     }
 
     private fun refreshSessions() {
