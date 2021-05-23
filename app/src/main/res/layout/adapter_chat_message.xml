@@ -10,7 +10,6 @@
         android:layout_height="wrap_content"
         android:textIsSelectable="true"
         android:autoLink="all"
-        android:textColorLink="@color/textLink"
         android:textColor="@color/messageTextColor"
         style="@style/Bubble"/>
 

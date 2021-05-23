@@ -2,12 +2,12 @@
 <resources>
     <color name="primary">#262626</color>
     <color name="secondary">#19a52c</color>
-    <color name="white">#FFFFFF</color>
     <color name="backgroundColor">#111111</color>
     <color name="sessionBackground">#1A1A1A</color>
     <color name="bubbleBackground">@color/sessionBackground</color>
     <color name="incomingBubbleBackground">@color/secondary</color>
-    <color name="textLink">#3845A3</color>
+    <color name="outgoingTextLink">#d4866a</color>
+    <color name="incomingTextLink">#7d0839</color>
     <color name="messageTextColor">#ffffff</color>
     <color name="itemSelected">#66666666</color>
     <color name="transparent">#00000000</color>

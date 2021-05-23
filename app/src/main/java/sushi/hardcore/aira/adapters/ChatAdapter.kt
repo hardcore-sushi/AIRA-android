@@ -82,14 +82,18 @@ class ChatAdapter(
 
     internal class OutgoingMessageViewHolder(private val context: Context, itemView: View): MessageViewHolder(itemView) {
         fun bind(chatItem: ChatItem) {
-            configureBubble(context, bindMessage(chatItem), true)
+            configureBubble(context, bindMessage(chatItem).apply {
+                 setLinkTextColor(ContextCompat.getColor(context, R.color.outgoingTextLink))
+            }, true)
             setPadding(true)
         }
     }
 
     internal class IncomingMessageViewHolder(private val context: Context, itemView: View): MessageViewHolder(itemView) {
         fun bind(chatItem: ChatItem) {
-            configureBubble(context, bindMessage(chatItem), false)
+            configureBubble(context, bindMessage(chatItem).apply {
+                setLinkTextColor(ContextCompat.getColor(context, R.color.incomingTextLink))
+            }, false)
             setPadding(false)
         }
     }

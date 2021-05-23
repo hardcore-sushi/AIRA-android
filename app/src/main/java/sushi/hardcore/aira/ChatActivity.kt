@@ -41,16 +41,15 @@ class ChatActivity : ServiceBoundActivity() {
         super.onCreate(savedInstanceState)
         binding = ActivityChatBinding.inflate(layoutInflater)
         setContentView(binding.root)
+        setSupportActionBar(binding.toolbar.toolbar)
+        supportActionBar?.setDisplayHomeAsUpEnabled(true)
 
         sessionId = intent.getIntExtra("sessionId", -1)
         if (sessionId != -1) {
             intent.getStringExtra("sessionName")?.let { name ->
                 sessionName = name
-                setSupportActionBar(binding.toolbar.toolbar)
                 binding.toolbar.textAvatar.setLetterFrom(name)
                 binding.toolbar.title.text = name
-                supportActionBar?.setDisplayHomeAsUpEnabled(true)
-
                 chatAdapter = ChatAdapter(this@ChatActivity, ::onClickSaveFile)
                 binding.recyclerChat.apply {
                     adapter = chatAdapter
@@ -72,6 +71,9 @@ class ChatActivity : ServiceBoundActivity() {
                             loadMsgsIfNeeded(recyclerView)
                         }
                     })
+                }
+                binding.toolbar.toolbar.setOnClickListener {
+                    showSessionInfo()
                 }
                 binding.buttonSend.setOnClickListener {
                     val msg = binding.editMessage.text.toString()
@@ -219,38 +221,7 @@ class ChatActivity : ServiceBoundActivity() {
                 true
             }
             R.id.session_info -> {
-                val contact = airaService.contacts[sessionId]
-                val session = airaService.sessions[sessionId]
-                val publicKey = contact?.publicKey ?: session?.peerPublicKey
-                val dialogBinding = DialogInfoBinding.inflate(layoutInflater)
-                dialogBinding.textAvatar.setLetterFrom(sessionName)
-                dialogBinding.textFingerprint.text = StringUtils.beautifyFingerprint(generateFingerprint(publicKey!!))
-                if (session == null) {
-                    dialogBinding.onlineFields.visibility = View.GONE
-                } else {
-                    dialogBinding.textIp.text = session.ip
-                    dialogBinding.textOutgoing.text = getString(if (session.outgoing) {
-                        R.string.outgoing
-                    } else {
-                        R.string.incoming
-                    })
-                }
-                dialogBinding.textIsContact.text = getString(if (contact == null) {
-                    dialogBinding.fieldIsVerified.visibility = View.GONE
-                    R.string.no
-                } else {
-                    dialogBinding.textIsVerified.text = getString(if (contact.verified) {
-                        R.string.yes
-                    } else {
-                        R.string.no
-                    })
-                    R.string.yes
-                })
-                AlertDialog.Builder(this)
-                        .setTitle(sessionName)
-                        .setView(dialogBinding.root)
-                        .setPositiveButton(R.string.ok, null)
-                        .show()
+                showSessionInfo()
                 true
             }
             R.id.set_as_contact -> {
@@ -339,5 +310,40 @@ class ChatActivity : ServiceBoundActivity() {
                 Toast.makeText(this@ChatActivity, R.string.file_saved, Toast.LENGTH_SHORT).show()
             }
         }
+    }
+
+    private fun showSessionInfo() {
+        val contact = airaService.contacts[sessionId]
+        val session = airaService.sessions[sessionId]
+        val publicKey = contact?.publicKey ?: session?.peerPublicKey
+        val dialogBinding = DialogInfoBinding.inflate(layoutInflater)
+        dialogBinding.textAvatar.setLetterFrom(sessionName)
+        dialogBinding.textFingerprint.text = StringUtils.beautifyFingerprint(generateFingerprint(publicKey!!))
+        if (session == null) {
+            dialogBinding.onlineFields.visibility = View.GONE
+        } else {
+            dialogBinding.textIp.text = session.ip
+            dialogBinding.textOutgoing.text = getString(if (session.outgoing) {
+                R.string.outgoing
+            } else {
+                R.string.incoming
+            })
+        }
+        dialogBinding.textIsContact.text = getString(if (contact == null) {
+            dialogBinding.fieldIsVerified.visibility = View.GONE
+            R.string.no
+        } else {
+            dialogBinding.textIsVerified.text = getString(if (contact.verified) {
+                R.string.yes
+            } else {
+                R.string.no
+            })
+            R.string.yes
+        })
+        AlertDialog.Builder(this)
+            .setTitle(sessionName)
+            .setView(dialogBinding.root)
+            .setPositiveButton(R.string.ok, null)
+            .show()
     }
 }
