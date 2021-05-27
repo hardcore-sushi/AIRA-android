@@ -30,16 +30,18 @@
             android:layout_height="@dimen/image_button_size"
             android:src="@drawable/ic_attach_file"
             style="@style/ImageButton"
+            android:contentDescription="@string/send_file"
             app:layout_constraintTop_toTopOf="parent"
             app:layout_constraintBottom_toBottomOf="parent"
             app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintEnd_toStartOf="@id/image_trust_level" />
+            app:layout_constraintEnd_toStartOf="@id/image_trust_level"/>
 
         <ImageView
             android:id="@+id/image_trust_level"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:src="@drawable/ic_warning"
+            android:contentDescription="@string/trust_level_indicator"
             app:layout_constraintTop_toTopOf="parent"
             app:layout_constraintBottom_toBottomOf="parent"
             app:layout_constraintStart_toEndOf="@id/button_attach"
@@ -49,6 +51,9 @@
             android:id="@+id/edit_message"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
+            android:hint="@string/message_hint"
+            android:autofillHints="message"
+            android:inputType="text"
             app:layout_constraintTop_toTopOf="parent"
             app:layout_constraintBottom_toBottomOf="parent"
             app:layout_constraintStart_toEndOf="@id/image_trust_level"
@@ -60,10 +65,11 @@
             android:layout_height="@dimen/image_button_size"
             android:src="@drawable/ic_send"
             style="@style/ImageButton"
+            android:contentDescription="@string/send_message"
             app:layout_constraintTop_toTopOf="parent"
             app:layout_constraintBottom_toBottomOf="parent"
             app:layout_constraintStart_toEndOf="@id/edit_message"
-            app:layout_constraintEnd_toEndOf="parent" />
+            app:layout_constraintEnd_toEndOf="parent"/>
 
     </androidx.constraintlayout.widget.ConstraintLayout>
 

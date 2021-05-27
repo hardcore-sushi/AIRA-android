@@ -1,60 +1,69 @@
 <?xml version="1.0" encoding="utf-8"?>
-<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
-    xmlns:tools="http://schemas.android.com/tools"
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
-    android:layout_height="match_parent"
-    tools:context=".CreateIdentityFragment">
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:layout_gravity="center_vertical">
 
-    <LinearLayout
+    <TextView
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:orientation="vertical"
-        android:layout_marginHorizontal="50dp"
-        android:layout_centerInParent="true">
+        android:text="@string/create_identity_test"
+        style="@style/Label"/>
 
-        <TextView
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:text="@string/create_identity_test"
-            style="@style/Label"/>
+    <ImageView
+        android:id="@+id/avatar"
+        android:layout_width="@dimen/identityAvatarSize"
+        android:layout_height="@dimen/identityAvatarSize"
+        android:layout_gravity="center_horizontal"
+        android:src="@drawable/ic_face"
+        android:contentDescription="@string/avatar"/>
 
-        <EditText
-            android:id="@+id/edit_name"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:hint="@string/identity_name"
-            android:inputType="text"/>
+    <Button
+        android:id="@+id/button_set_avatar"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="center_horizontal"
+        android:text="@string/choose_avatar"/>
 
-        <androidx.appcompat.widget.SwitchCompat
-            android:id="@+id/checkbox_enable_password"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_gravity="center_horizontal"
-            android:text="@string/enable_password"/>
+    <EditText
+        android:id="@+id/edit_name"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:hint="@string/identity_name"
+        android:inputType="text"
+        android:autofillHints="name"/>
 
-        <EditText
-            android:id="@+id/edit_password"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:hint="@string/password_hint"
-            android:inputType="textPassword"
-            android:visibility="gone"/>
+    <androidx.appcompat.widget.SwitchCompat
+        android:id="@+id/checkbox_enable_password"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="center_horizontal"
+        android:text="@string/enable_password"/>
 
-        <EditText
-            android:id="@+id/edit_password_confirm"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:hint="@string/password_confirm_hint"
-            android:inputType="textPassword"
-            android:visibility="gone"/>
+    <EditText
+        android:id="@+id/edit_password"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:hint="@string/password_hint"
+        android:inputType="textPassword"
+        android:visibility="gone"
+        android:autofillHints="password"/>
 
-        <Button
-            android:id="@+id/button_create"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_gravity="center"
-            android:text="@string/create"/>
+    <EditText
+        android:id="@+id/edit_password_confirm"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:hint="@string/password_confirm_hint"
+        android:inputType="textPassword"
+        android:visibility="gone"
+        android:autofillHints="password"/>
 
-    </LinearLayout>
+    <Button
+        android:id="@+id/button_create"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="center_horizontal"
+        android:text="@string/create"/>
 
-</RelativeLayout>
+</LinearLayout>

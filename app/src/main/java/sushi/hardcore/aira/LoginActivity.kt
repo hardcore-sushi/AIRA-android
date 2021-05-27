@@ -11,8 +11,10 @@ class LoginActivity : AppCompatActivity() {
     private external fun getIdentityName(databaseFolder: String): String?
 
     companion object {
+        private external fun initLogging()
         init {
             System.loadLibrary("aira")
+            initLogging()
         }
     }
 
@@ -33,7 +35,7 @@ class LoginActivity : AppCompatActivity() {
             finish()
         } else if (name != null && !isProtected) {
             if (AIRADatabase.loadIdentity(databaseFolder, null)) {
-                AIRADatabase.clearTemporaryFiles()
+                AIRADatabase.clearCache()
                 startMainActivity(name)
             } else {
                 Toast.makeText(this, R.string.identity_load_failed, Toast.LENGTH_SHORT).show()
@@ -42,7 +44,8 @@ class LoginActivity : AppCompatActivity() {
             supportFragmentManager.beginTransaction()
                 .add(
                     R.id.fragment_container, if (name == null) {
-                        CreateIdentityFragment.newInstance()
+                        AIRADatabase.removeIdentityAvatar(databaseFolder)
+                        CreateIdentityFragment.newInstance(this)
                     } else {
                         LoginFragment.newInstance(name)
                     }

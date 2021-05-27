@@ -6,5 +6,6 @@ class Session(
         val isVerified: Boolean,
         var seen: Boolean,
         val ip: String?,
-        var name: String?
+        var name: String?,
+        var avatar: ByteArray?,
 )

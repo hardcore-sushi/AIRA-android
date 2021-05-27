@@ -6,8 +6,8 @@
     android:layout_height="match_parent"
     android:paddingHorizontal="20dp">
 
-    <sushi.hardcore.aira.widgets.TextAvatar
-        android:id="@+id/text_avatar"
+    <sushi.hardcore.aira.widgets.Avatar
+        android:id="@+id/avatar"
         android:layout_width="100dp"
         android:layout_height="100dp"
         app:textSize="20sp"

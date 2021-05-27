@@ -11,6 +11,7 @@ const DB_NAME: &str = "AIRA.db";
 const MAIN_TABLE: &str = "main";
 const CONTACTS_TABLE: &str = "contacts";
 const FILES_TABLE: &str = "files";
+const AVATARS_TABLE: &str = "avatars";
 
 const DATABASE_CORRUPED_ERROR: &str = "Database corrupted";
 
@@ -21,6 +22,7 @@ impl<'a> DBKeys {
     pub const SALT: &'a str = "salt";
     pub const MASTER_KEY: &'a str = "master_key";
     pub const USE_PADDING: &'a str = "use_padding";
+    pub const AVATAR: &'a str = "avatar";
 }
 
 fn bool_to_byte(b: bool) -> u8 {
@@ -53,6 +55,7 @@ pub struct Contact {
     pub uuid: Uuid,
     pub public_key: [u8; PUBLIC_KEY_LENGTH],
     pub name: String,
+    pub avatar: Option<Uuid>,
     pub verified: bool,
     pub seen: bool,
 }
@@ -79,19 +82,23 @@ impl Identity {
         get_database_path(&self.database_folder)
     }
 
-    pub fn add_contact(&self, name: String, public_key: [u8; PUBLIC_KEY_LENGTH]) -> Result<Contact, rusqlite::Error> {
+    pub fn add_contact(&self, name: String, avatar_uuid: Option<Uuid>, public_key: [u8; PUBLIC_KEY_LENGTH]) -> Result<Contact, rusqlite::Error> {
         let db = Connection::open(self.get_database_path())?;
-        db.execute(&("CREATE TABLE IF NOT EXISTS ".to_owned()+CONTACTS_TABLE+"(uuid BLOB PRIMARY KEY, name BLOB, key BLOB, verified BLOB, seen BLOB)"), [])?;
+        db.execute(&("CREATE TABLE IF NOT EXISTS ".to_owned()+CONTACTS_TABLE+"(uuid BLOB PRIMARY KEY, name BLOB, avatar BLOB, key BLOB, verified BLOB, seen BLOB)"), [])?;
         let contact_uuid = Uuid::new_v4();
         let encrypted_name = crypto::encrypt_data(name.as_bytes(), &self.master_key).unwrap();
         let encrypted_public_key = crypto::encrypt_data(&public_key, &self.master_key).unwrap();
         let encrypted_verified = crypto::encrypt_data(&[bool_to_byte(false)], &self.master_key).unwrap();
         let encrypted_seen = crypto::encrypt_data(&[bool_to_byte(true)], &self.master_key).unwrap();
-        db.execute(&("INSERT INTO ".to_owned()+CONTACTS_TABLE+" (uuid, name, key, verified, seen) VALUES (?1, ?2, ?3, ?4, ?5)"), params![&contact_uuid.as_bytes()[..], encrypted_name, encrypted_public_key, encrypted_verified, encrypted_seen])?;
+        match avatar_uuid {
+            Some(avatar_uuid) => db.execute(&format!("INSERT INTO {} (uuid, name, avatar, key, verified, seen) VALUES (?1, ?2, ?3, ?4, ?5, ?6)", CONTACTS_TABLE), params![&contact_uuid.as_bytes()[..], encrypted_name, &avatar_uuid.as_bytes()[..], encrypted_public_key, encrypted_verified, encrypted_seen])?,
+            None => db.execute(&format!("INSERT INTO {} (uuid, name, key, verified, seen) VALUES (?1, ?2, ?3, ?4, ?5)", CONTACTS_TABLE), params![&contact_uuid.as_bytes()[..], encrypted_name, encrypted_public_key, encrypted_verified, encrypted_seen])?
+        };
         Ok(Contact {
             uuid: contact_uuid,
             public_key: public_key,
             name: name,
+            avatar: avatar_uuid,
             verified: false,
             seen: true,
         })
@@ -115,6 +122,17 @@ impl Identity {
         db.execute(&format!("UPDATE {} SET name=?1 WHERE uuid=?2", CONTACTS_TABLE), [encrypted_name.as_slice(), uuid.as_bytes()])
     }
 
+    pub fn set_contact_avatar(&self, contact_uuid: &Uuid, avatar_uuid: Option<&Uuid>) -> Result<usize, rusqlite::Error> {
+        let db = Connection::open(self.get_database_path())?;
+        match avatar_uuid {
+            Some(avatar_uuid) => db.execute(&format!("UPDATE {} SET avatar=?1 WHERE uuid=?2", CONTACTS_TABLE), params![&avatar_uuid.as_bytes()[..], &contact_uuid.as_bytes()[..]]),
+            None => {
+                db.execute(&format!("DELETE FROM {} WHERE uuid=(SELECT avatar FROM {} WHERE uuid=?)", AVATARS_TABLE, CONTACTS_TABLE), params![&contact_uuid.as_bytes()[..]])?;
+                db.execute(&format!("UPDATE {} SET avatar=NULL WHERE uuid=?", CONTACTS_TABLE), params![&contact_uuid.as_bytes()[..]])
+            }
+        }
+    }
+
     pub fn set_contact_seen(&self, uuid: &Uuid, seen: bool) -> Result<usize, rusqlite::Error> {
         let db = Connection::open(self.get_database_path())?;
         let encrypted_seen = crypto::encrypt_data(&[bool_to_byte(seen)], &self.master_key).unwrap();
@@ -124,107 +142,99 @@ impl Identity {
     pub fn load_contacts(&self) -> Option<Vec<Contact>> {
         match Connection::open(self.get_database_path()) {
             Ok(db) => {
-                match db.prepare(&("SELECT uuid, name, key, verified, seen FROM ".to_owned()+CONTACTS_TABLE)) {
-                    Ok(mut stmt) => {
-                        let mut rows = stmt.query([]).unwrap();
-                        let mut contacts = Vec::new();
-                        while let Some(row) = rows.next().unwrap() {
-                            let encrypted_public_key: Vec<u8> = row.get(2).unwrap();
-                            match crypto::decrypt_data(encrypted_public_key.as_slice(), &self.master_key) {
-                                Ok(public_key) => {
-                                    if public_key.len() == PUBLIC_KEY_LENGTH {
-                                        let encrypted_name: Vec<u8> = row.get(1).unwrap();
-                                        match crypto::decrypt_data(encrypted_name.as_slice(), &self.master_key) {
-                                            Ok(name) => {
-                                                let encrypted_verified: Vec<u8> = row.get(3).unwrap();
-                                                match crypto::decrypt_data(encrypted_verified.as_slice(), &self.master_key) {
-                                                    Ok(verified) => {
-                                                        let encrypted_seen: Vec<u8> = row.get(4).unwrap();
-                                                        match crypto::decrypt_data(encrypted_seen.as_slice(), &self.master_key) {
-                                                            Ok(seen) => {
-                                                                let uuid: Vec<u8> = row.get(0).unwrap();
-                                                                match to_uuid_bytes(&uuid) {
-                                                                    Some(uuid_bytes) => {
-                                                                        contacts.push(Contact {
-                                                                            uuid: Uuid::from_bytes(uuid_bytes),
-                                                                            public_key: public_key.try_into().unwrap(),
-                                                                            name: std::str::from_utf8(name.as_slice()).unwrap().to_owned(),
-                                                                            verified: byte_to_bool(verified[0]).unwrap(),
-                                                                            seen: byte_to_bool(seen[0]).unwrap(),
-                                                                        })
-                                                                    }
-                                                                    None => {}
-                                                                }
-                                                            }
-                                                            Err(e) => print_error!(e)
-                                                        }
+                if let Ok(mut stmt) = db.prepare(&("SELECT uuid, name, avatar, key, verified, seen FROM ".to_owned()+CONTACTS_TABLE)) {
+                    let mut rows = stmt.query([]).unwrap();
+                    let mut contacts = Vec::new();
+                    while let Ok(Some(row)) = rows.next() {
+                        let encrypted_public_key: Vec<u8> = row.get(3).unwrap();
+                        match crypto::decrypt_data(encrypted_public_key.as_slice(), &self.master_key) {
+                            Ok(public_key) => {
+                                let encrypted_name: Vec<u8> = row.get(1).unwrap();
+                                match crypto::decrypt_data(encrypted_name.as_slice(), &self.master_key) {
+                                    Ok(name) => {
+                                        let encrypted_verified: Vec<u8> = row.get(4).unwrap();
+                                        match crypto::decrypt_data(encrypted_verified.as_slice(), &self.master_key) {
+                                            Ok(verified) => {
+                                                let encrypted_seen: Vec<u8> = row.get(5).unwrap();
+                                                match crypto::decrypt_data(encrypted_seen.as_slice(), &self.master_key) {
+                                                    Ok(seen) => {
+                                                        let contact_uuid: Vec<u8> = row.get(0).unwrap();
+                                                        let avatar_result: Result<Vec<u8>, rusqlite::Error> = row.get(2);
+                                                        let avatar = match avatar_result {
+                                                            Ok(avatar_uuid) => Some(Uuid::from_bytes(to_uuid_bytes(&avatar_uuid).unwrap())),
+                                                            Err(_) => None
+                                                        };
+                                                        contacts.push(Contact {
+                                                            uuid: Uuid::from_bytes(to_uuid_bytes(&contact_uuid).unwrap()),
+                                                            public_key: public_key.try_into().unwrap(),
+                                                            name: std::str::from_utf8(name.as_slice()).unwrap().to_owned(),
+                                                            avatar,
+                                                            verified: byte_to_bool(verified[0]).unwrap(),
+                                                            seen: byte_to_bool(seen[0]).unwrap(),
+                                                        })
                                                     }
                                                     Err(e) => print_error!(e)
                                                 }
                                             }
                                             Err(e) => print_error!(e)
                                         }
-                                    } else {
-                                        print_error!("Invalid public key length: database corrupted");
                                     }
+                                    Err(e) => print_error!(e)
                                 }
-                                Err(e) => print_error!(e)
                             }
+                            Err(e) => print_error!(e)
                         }
-                        Some(contacts)
                     }
-                    Err(e) => {
-                        print_error!(e);
-                        None
-                    }
-                }            
+                    return Some(contacts);
+                }
             }
-            Err(e) => {
-                print_error!(e);
-                None
-            }
+            Err(e) => print_error!(e)
         }
+        None
     }
 
-    pub fn clear_temporary_files(&self) -> Result<usize, rusqlite::Error> {
+    pub fn clear_cache(&self) -> Result<(), rusqlite::Error> {
         let db = Connection::open(self.get_database_path())?;
-        db.execute(&format!("DELETE FROM {} WHERE contact_uuid IS NULL", FILES_TABLE), [])
+        let mut stmt = db.prepare(&format!("SELECT name FROM sqlite_master WHERE type='table' AND name='{}'", CONTACTS_TABLE))?;
+        let mut rows = stmt.query([])?;
+        let contact_table_exists = rows.next()?.is_some();
+        if contact_table_exists {
+            #[allow(unused_must_use)]
+            {
+                db.execute(&format!("DELETE FROM {} WHERE contact_uuid IS NULL", FILES_TABLE), []);
+                db.execute(&format!("DELETE FROM {} WHERE uuid NOT IN (SELECT avatar FROM {})", AVATARS_TABLE, CONTACTS_TABLE), []);
+            }
+        } else {
+            db.execute(&format!("DROP TABLE IF EXISTS {}", FILES_TABLE), [])?;
+            db.execute(&format!("DROP TABLE IF EXISTS {}", AVATARS_TABLE), [])?;
+        }
+        Ok(())
     }
 
     pub fn load_file(&self, uuid: Uuid) -> Option<Vec<u8>> {
         match Connection::open(self.get_database_path()) {
             Ok(db) => {
-                match db.prepare(&format!("SELECT uuid, data FROM \"{}\"", FILES_TABLE)) {
-                    Ok(mut stmt) => {
-                        let mut rows = stmt.query([]).unwrap();
-                        while let Some(row) = rows.next().unwrap() {
-                            let encrypted_uuid: Vec<u8> = row.get(0).unwrap();
-                            match crypto::decrypt_data(encrypted_uuid.as_slice(), &self.master_key){
-                                Ok(test_uuid) => {
-                                    if test_uuid == uuid.as_bytes() {
-                                        let encrypted_data: Vec<u8> = row.get(1).unwrap();
-                                        match crypto::decrypt_data(encrypted_data.as_slice(), &self.master_key) {
-                                            Ok(data) => return Some(data),
-                                            Err(e) => print_error!(e)
-                                        }
-                                    }
+                let mut stmt = db.prepare(&format!("SELECT uuid, data FROM \"{}\"", FILES_TABLE)).unwrap();
+                let mut rows = stmt.query([]).unwrap();
+                while let Ok(Some(row)) = rows.next() {
+                    let encrypted_uuid: Vec<u8> = row.get(0).unwrap();
+                    match crypto::decrypt_data(encrypted_uuid.as_slice(), &self.master_key){
+                        Ok(test_uuid) => {
+                            if test_uuid == uuid.as_bytes() {
+                                let encrypted_data: Vec<u8> = row.get(1).unwrap();
+                                match crypto::decrypt_data(encrypted_data.as_slice(), &self.master_key) {
+                                    Ok(data) => return Some(data),
+                                    Err(e) => print_error!(e)
                                 }
-                                Err(e) => print_error!(e)
                             }
                         }
-                        None
-                    }
-                    Err(e) => {
-                        print_error!(e);
-                        None
+                        Err(e) => print_error!(e)
                     }
                 }
             }
-            Err(e) => {
-                print_error!(e);
-                None
-            }
+            Err(e) => print_error!(e)
         }
+        None
     }
 
     pub fn store_file(&self, contact_uuid: Option<Uuid>, data: &[u8]) -> Result<Uuid, rusqlite::Error> {
@@ -253,73 +263,44 @@ impl Identity {
     pub fn load_msgs(&self, contact_uuid: &Uuid, offset: usize, mut count: usize) -> Option<Vec<(bool, Vec<u8>)>> {
         match Connection::open(self.get_database_path()) {
             Ok(db) => {
-                match db.prepare(&format!("SELECT count(*) FROM \"{}\"", contact_uuid)) {
-                    Ok(mut stmt) => {
-                        let mut rows = stmt.query([]).unwrap();
-                        match rows.next() {
-                            Ok(row) => if row.is_some() {
-                                let total: usize = row.unwrap().get(0).unwrap();
-                                if offset >= total {
-                                    None
-                                } else {
-                                    if offset+count >= total {
-                                        count = total-offset;
-                                    }
-                                    match db.prepare(&format!("SELECT outgoing, data FROM \"{}\" LIMIT {} OFFSET {}", contact_uuid, count, total-offset-count)) {
-                                        Ok(mut stmt) => {
-                                            let mut rows = stmt.query([]).unwrap();
-                                            let mut msgs = Vec::new();
-                                            while let Some(row) = rows.next().unwrap() {
-                                                let encrypted_outgoing: Vec<u8> = row.get(0).unwrap();
-                                                match crypto::decrypt_data(encrypted_outgoing.as_slice(), &self.master_key){
-                                                    Ok(outgoing) => {
-                                                        match byte_to_bool(outgoing[0]) {
-                                                            Ok(outgoing) => {
-                                                                let encrypted_data: Vec<u8> = row.get(1).unwrap();
-                                                                match crypto::decrypt_data(encrypted_data.as_slice(), &self.master_key) {
-                                                                    Ok(data) => {
-                                                                        msgs.push(
-                                                                            (
-                                                                                outgoing,
-                                                                                data
-                                                                            )
-                                                                        )
-                                                                    },
-                                                                    Err(e) => print_error!(e)
-                                                                }
-                                                            }
-                                                            Err(_) => {}
-                                                        }
-                                                        
-                                                    }
+                if let Ok(mut stmt) = db.prepare(&format!("SELECT count(*) FROM \"{}\"", contact_uuid)) {
+                    let mut rows = stmt.query([]).unwrap();
+                    if let Ok(Some(row)) = rows.next() {
+                        let total: usize = row.get(0).unwrap();
+                        if offset < total {
+                            if offset+count >= total {
+                                count = total-offset;
+                            }
+                            let mut stmt = db.prepare(&format!("SELECT outgoing, data FROM \"{}\" LIMIT {} OFFSET {}", contact_uuid, count, total-offset-count)).unwrap();
+                            let mut rows = stmt.query([]).unwrap();
+                            let mut msgs = Vec::new();
+                            while let Ok(Some(row)) = rows.next() {
+                                let encrypted_outgoing: Vec<u8> = row.get(0).unwrap();
+                                match crypto::decrypt_data(encrypted_outgoing.as_slice(), &self.master_key){
+                                    Ok(outgoing) => {
+                                        match byte_to_bool(outgoing[0]) {
+                                            Ok(outgoing) => {
+                                                let encrypted_data: Vec<u8> = row.get(1).unwrap();
+                                                match crypto::decrypt_data(encrypted_data.as_slice(), &self.master_key) {
+                                                    Ok(data) => msgs.push((outgoing, data)),
                                                     Err(e) => print_error!(e)
                                                 }
                                             }
-                                            Some(msgs)
+                                            Err(_) => {}
                                         }
-                                        Err(e) => {
-                                            print_error!(e);
-                                            None
-                                        }
+                                        
                                     }
+                                    Err(e) => print_error!(e)
                                 }
-                            } else {
-                                None
                             }
-                            Err(_) => None
+                            return Some(msgs);
                         }
-                    }
-                    Err(e) => {
-                        print_error!(e);
-                        None
                     }
                 }
             }
-            Err(e) => {
-                print_error!(e);
-                None
-            }
+            Err(e) => print_error!(e)
         }
+        None
     }
     
     #[allow(unused_must_use)]
@@ -343,6 +324,29 @@ impl Identity {
         let db = KeyValueTable::new(&self.get_database_path(), MAIN_TABLE)?;
         let encrypted_use_padding = crypto::encrypt_data(&[bool_to_byte(use_padding)], &self.master_key).unwrap();
         db.update(DBKeys::USE_PADDING, &encrypted_use_padding)
+    }
+
+    pub fn store_avatar(&self, avatar: &[u8]) -> Result<Uuid, rusqlite::Error> {
+        let db = Connection::open(self.get_database_path())?;
+        db.execute(&format!("CREATE TABLE IF NOT EXISTS \"{}\" (uuid BLOB PRIMARY KEY, data BLOB)", AVATARS_TABLE), [])?;
+        let uuid = Uuid::new_v4();
+        let encrypted_avatar = crypto::encrypt_data(avatar, &self.master_key).unwrap();
+        db.execute(&format!("INSERT INTO {} (uuid, data) VALUES (?1, ?2)", AVATARS_TABLE), params![&uuid.as_bytes()[..], encrypted_avatar])?;
+        Ok(uuid)
+    }
+
+    pub fn get_avatar(&self, avatar_uuid: &Uuid) -> Option<Vec<u8>> {
+        let db = Connection::open(self.get_database_path()).ok()?;
+        let mut stmt = db.prepare(&format!("SELECT data FROM {} WHERE uuid=?", AVATARS_TABLE)).unwrap();
+        let mut rows = stmt.query(params![&avatar_uuid.as_bytes()[..]]).unwrap();
+        let encrypted_avatar: Vec<u8> = rows.next().ok()??.get(0).unwrap();
+        match crypto::decrypt_data(&encrypted_avatar, &self.master_key) {
+            Ok(avatar) => Some(avatar),
+            Err(e) => {
+                print_error!(e);
+                None
+            }
+        }
     }
 
     pub fn zeroize(&mut self){
@@ -489,5 +493,20 @@ impl Identity {
             }
             Err(e) => Err(e.to_string())
         }
+    }
+
+    pub fn set_identity_avatar(database_folder: &str, avatar: &[u8]) -> Result<usize, rusqlite::Error> {
+        let db = KeyValueTable::new(&get_database_path(database_folder), MAIN_TABLE)?;
+        db.upsert(DBKeys::AVATAR, avatar)
+    }
+
+    pub fn remove_identity_avatar(database_folder: &str) -> Result<usize, rusqlite::Error> {
+        let db = KeyValueTable::new(&get_database_path(database_folder), MAIN_TABLE)?;
+        db.del(DBKeys::AVATAR)
+    }
+
+    pub fn get_identity_avatar(database_folder: &str) -> Result<Vec<u8>, rusqlite::Error> {
+        let db = KeyValueTable::new(&get_database_path(database_folder), MAIN_TABLE)?;
+        db.get(DBKeys::AVATAR)
     }
 }

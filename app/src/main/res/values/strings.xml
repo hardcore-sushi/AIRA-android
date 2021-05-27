@@ -77,14 +77,28 @@
     <string name="settings">Settings</string>
     <string name="log_out">Log out</string>
     <string name="loadFile_failed">File extraction failed</string>
-    <string name="fingerprint_copied">Fingerprint copied to clipboard</string>
+    <string name="copied">Copied to clipboard !</string>
     <string name="identity">Identity</string>
     <string name="about">About</string>
     <string name="version">AIRA version</string>
-    <string name="refresh_name">Refresh name</string>
+    <string name="refresh_profile">Refresh profile</string>
     <string name="security">Security</string>
     <string name="use_psec_padding">Use PSEC padding</string>
     <string name="psec_padding_summary">PSEC padding obfuscates the length of your messages but uses more network bandwidth.</string>
     <string name="is_contact">Is contact:</string>
     <string name="is_verified">Is verified:</string>
+    <string name="avatar_too_large">Avatar cannot be larger than 10MB.</string>
+    <string name="your_avatar">Your avatar:</string>
+    <string name="set_a_new_one">Set a new one</string>
+    <string name="remove">Remove</string>
+    <string name="choose_avatar">Choose avatar</string>
+    <string name="message_hint">Send a message…</string>
+
+    <!--accessibility strings-->
+    <string name="send_file">Send file</string>
+    <string name="trust_level_indicator">Trust level indicator</string>
+    <string name="send_message">Send message</string>
+    <string name="show_your_ips">Show your IPs</string>
+    <string name="clickable_indicator">Clickable indicator</string>
+    <string name="avatar">Avatar</string>
 </resources>

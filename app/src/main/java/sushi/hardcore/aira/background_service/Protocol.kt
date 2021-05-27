@@ -1,25 +1,36 @@
 package sushi.hardcore.aira.background_service
 
+import sushi.hardcore.aira.widgets.Avatar
 import java.nio.ByteBuffer
 
 class Protocol {
     companion object {
         const val MESSAGE: Byte = 0x00
-        const val ASK_NAME: Byte = 0x01
-        const val TELL_NAME: Byte = 0x02
-        const val FILE: Byte = 0x03
-        const val ASK_LARGE_FILES: Byte = 0x04
-        const val ACCEPT_LARGE_FILES: Byte = 0x05
-        const val LARGE_FILE_CHUNK: Byte = 0x06
-        const val ACK_CHUNK: Byte = 0x07
-        const val ABORT_FILES_TRANSFER: Byte = 0x08
+        const val FILE: Byte = 0x01
+        const val ASK_PROFILE_INFO: Byte = 0x02
+        const val NAME: Byte = 0x03
+        const val AVATAR: Byte = 0x04
+        const val REMOVE_AVATAR: Byte = 0x05
+        const val ASK_LARGE_FILES: Byte = 0x06
+        const val ACCEPT_LARGE_FILES: Byte = 0x07
+        const val LARGE_FILE_CHUNK: Byte = 0x08
+        const val ACK_CHUNK: Byte = 0x09
+        const val ABORT_FILES_TRANSFER: Byte = 0x0a
 
-        fun askName(): ByteArray {
-            return byteArrayOf(ASK_NAME)
+        fun askProfileInfo(): ByteArray {
+            return byteArrayOf(ASK_PROFILE_INFO)
         }
 
-        fun tellName(name: String): ByteArray {
-            return byteArrayOf(TELL_NAME)+name.toByteArray()
+        fun name(name: String): ByteArray {
+            return byteArrayOf(NAME)+name.toByteArray()
+        }
+
+        fun avatar(avatar: ByteArray): ByteArray {
+            return byteArrayOf(AVATAR)+avatar
+        }
+
+        fun removeAvatar(): ByteArray {
+            return byteArrayOf(REMOVE_AVATAR)
         }
 
         fun newMessage(msg: String): ByteArray {

@@ -58,6 +58,12 @@ class MainActivity : ServiceBoundActivity() {
                 onlineSessionAdapter.setName(sessionId, name)
             }
         }
+
+        override fun onAvatarChanged(sessionId: Int, avatar: ByteArray?) {
+            runOnUiThread {
+                onlineSessionAdapter.setAvatar(sessionId, avatar)
+            }
+        }
         override fun onNewMessage(sessionId: Int, data: ByteArray): Boolean {
             runOnUiThread {
                 onlineSessionAdapter.setSeen(sessionId, false)
@@ -165,7 +171,7 @@ class MainActivity : ServiceBoundActivity() {
             }
             val dialogBinding = DialogIpAddressesBinding.inflate(layoutInflater)
             dialogBinding.textIpAddresses.text = ipAddresses.substring(0, ipAddresses.length-1) //remove last LF
-            AlertDialog.Builder(this)
+            AlertDialog.Builder(this, R.style.CustomAlertDialog)
                     .setTitle(R.string.your_addresses)
                     .setView(dialogBinding.root)
                     .setPositiveButton(R.string.ok, null)
@@ -194,7 +200,7 @@ class MainActivity : ServiceBoundActivity() {
             }
             R.id.close -> {
                 if (isServiceInitialized()) {
-                    AlertDialog.Builder(this)
+                    AlertDialog.Builder(this, R.style.CustomAlertDialog)
                         .setTitle(R.string.warning)
                         .setMessage(R.string.ask_log_out)
                         .setPositiveButton(R.string.yes) { _, _ ->
@@ -210,7 +216,7 @@ class MainActivity : ServiceBoundActivity() {
                 true
             }
             R.id.remove_contact -> {
-                AlertDialog.Builder(this)
+                AlertDialog.Builder(this, R.style.CustomAlertDialog)
                         .setTitle(R.string.warning)
                         .setMessage(R.string.ask_remove_contacts)
                         .setPositiveButton(R.string.delete) { _, _ ->
@@ -253,7 +259,12 @@ class MainActivity : ServiceBoundActivity() {
     }
 
     private fun initToolbar(identityName: String) {
-        binding.toolbar.textAvatar.setLetterFrom(identityName)
+        val avatar = AIRADatabase.getIdentityAvatar(Constants.getDatabaseFolder(this))
+        if (avatar == null) {
+            binding.toolbar.avatar.setTextAvatar(identityName)
+        } else {
+            binding.toolbar.avatar.setImageAvatar(avatar)
+        }
         binding.toolbar.title.text = identityName
     }
 
@@ -286,7 +297,7 @@ class MainActivity : ServiceBoundActivity() {
     private fun loadContacts() {
         if (offlineSessionAdapter != null) {
             for ((sessionId, contact) in airaService.contacts) {
-                offlineSessionAdapter!!.add(Session(sessionId, true, contact.verified, contact.seen, null, contact.name))
+                offlineSessionAdapter!!.add(Session(sessionId, true, contact.verified, contact.seen, null, contact.name, AIRADatabase.loadAvatar(contact.avatar)))
             }
         }
     }
@@ -301,9 +312,9 @@ class MainActivity : ServiceBoundActivity() {
         val seen = !airaService.notSeen.contains(sessionId)
         val contact = airaService.contacts[sessionId]
         if (contact == null) {
-            onlineSessionAdapter.add(Session(sessionId, false, false, seen, ip, airaService.savedNames[sessionId]))
+            onlineSessionAdapter.add(Session(sessionId, false, false, seen, ip, airaService.savedNames[sessionId], AIRADatabase.loadAvatar(airaService.savedAvatars[sessionId])))
         } else {
-            onlineSessionAdapter.add(Session(sessionId, true, contact.verified, seen, ip, contact.name))
+            onlineSessionAdapter.add(Session(sessionId, true, contact.verified, seen, ip, contact.name, AIRADatabase.loadAvatar(contact.avatar)))
             offlineSessionAdapter?.remove(sessionId)
         }
     }
@@ -311,7 +322,7 @@ class MainActivity : ServiceBoundActivity() {
     private fun launchChatActivity(session: Session) {
         startActivity(Intent(this, ChatActivity::class.java).apply {
             putExtra("sessionId", session.sessionId)
-            putExtra("sessionName", session.name)
+            putExtra("sessionName", airaService.getNameOf(session.sessionId))
         })
     }
 
@@ -338,7 +349,7 @@ class MainActivity : ServiceBoundActivity() {
             } else {
                 getString(R.string.ask_send_multiple_files, uris!!.size, session.name ?: session.ip)
             }
-            AlertDialog.Builder(this)
+            AlertDialog.Builder(this, R.style.CustomAlertDialog)
                     .setTitle(R.string.warning)
                     .setMessage(msg)
                     .setPositiveButton(R.string.yes) { _, _ ->

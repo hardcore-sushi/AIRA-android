@@ -32,8 +32,9 @@ class AIRAService : Service() {
         const val MESSAGE_CONNECT_TO = 0
         const val MESSAGE_SEND_TO = 1
         const val MESSAGE_LOGOUT = 2
-        const val MESSAGE_TELL_NAME = 3
-        const val MESSAGE_CANCEL_FILE_TRANSFER = 4
+        const val MESSAGE_SEND_NAME = 3
+        const val MESSAGE_SEND_AVATAR = 4
+        const val MESSAGE_CANCEL_FILE_TRANSFER = 5
 
         var isServiceRunning = false
     }
@@ -87,6 +88,7 @@ class AIRAService : Service() {
     }
     val savedMsgs = mutableMapOf<Int, MutableList<ChatItem>>()
     val savedNames = mutableMapOf<Int, String>()
+    val savedAvatars = mutableMapOf<Int, String>()
     val notSeen = mutableListOf<Int>()
     var uiCallbacks: UiCallbacks? = null
     var isAppInBackground = true
@@ -104,6 +106,7 @@ class AIRAService : Service() {
         fun onNewSession(sessionId: Int, ip: String)
         fun onSessionDisconnect(sessionId: Int)
         fun onNameTold(sessionId: Int, name: String)
+        fun onAvatarChanged(sessionId: Int, avatar: ByteArray?)
         fun onNewMessage(sessionId: Int, data: ByteArray): Boolean
         fun onAskLargeFiles(sessionId: Int, name: String, filesReceiver: FilesReceiver): Boolean
     }
@@ -185,7 +188,7 @@ class AIRAService : Service() {
         return sessions.contains(sessionId)
     }
 
-    private fun getNameOf(sessionId: Int): String {
+    fun getNameOf(sessionId: Int): String {
         return contacts[sessionId]?.name ?: savedNames[sessionId] ?: sessions[sessionId]!!.ip
     }
 
@@ -195,7 +198,7 @@ class AIRAService : Service() {
 
     fun setAsContact(sessionId: Int, name: String): Boolean {
         sessions[sessionId]?.peerPublicKey?.let {
-            AIRADatabase.addContact(name, it)?.let { contact ->
+            AIRADatabase.addContact(name, savedAvatars[sessionId], it)?.let { contact ->
                 contacts[sessionId] = contact
                 savedMsgs.remove(sessionId)?.let { msgs ->
                     for (msg in msgs) {
@@ -203,6 +206,7 @@ class AIRAService : Service() {
                     }
                 }
                 savedNames.remove(sessionId)
+                savedAvatars.remove(sessionId)
                 return true
             }
         }
@@ -240,6 +244,9 @@ class AIRAService : Service() {
             return if (AIRADatabase.removeContact(it.uuid)) {
                 savedMsgs[sessionId] = mutableListOf()
                 savedNames[sessionId] = it.name
+                it.avatar?.let { avatarUuid ->
+                    savedAvatars[sessionId] = avatarUuid
+                }
                 true
             } else {
                 false
@@ -263,7 +270,26 @@ class AIRAService : Service() {
     fun changeName(newName: String): Boolean {
         return if (AIRADatabase.changeName(newName)) {
             identityName = newName
-            serviceHandler.sendEmptyMessage(MESSAGE_TELL_NAME)
+            serviceHandler.sendEmptyMessage(MESSAGE_SEND_NAME)
+            true
+        } else {
+            false
+        }
+    }
+
+    fun changeAvatar(avatar: ByteArray?): Boolean {
+        val databaseFolder = Constants.getDatabaseFolder(applicationContext)
+        val success = if (avatar == null) {
+            AIRADatabase.removeIdentityAvatar(databaseFolder)
+        } else {
+            AIRADatabase.setIdentityAvatar(databaseFolder, avatar)
+        }
+        return if (success) {
+            serviceHandler.obtainMessage().apply {
+                what = MESSAGE_SEND_AVATAR
+                data = Bundle().apply { putByteArray("avatar", avatar) }
+                serviceHandler.sendMessage(this)
+            }
             true
         } else {
             false
@@ -301,7 +327,7 @@ class AIRAService : Service() {
                             sessionIdByKey[key] = sessionId
                             uiCallbacks?.onNewSession(sessionId, session.ip)
                             if (!isContact(sessionId)) {
-                                session.encryptAndSend(Protocol.askName(), usePadding)
+                                session.encryptAndSend(Protocol.askProfileInfo(), usePadding)
                             }
                         } else {
                             session.close()
@@ -449,14 +475,30 @@ class AIRAService : Service() {
                                     cancelFileTransfer(sessionId, session, true)
                                 }
                             }
-                            MESSAGE_TELL_NAME -> {
+                            MESSAGE_SEND_NAME -> {
                                 identityName?.let {
+                                    val tellingName = Protocol.name(it)
                                     for (session in sessions.values) {
                                         try {
-                                            session.encryptAndSend(Protocol.tellName(it), usePadding)
+                                            session.encryptAndSend(tellingName, usePadding)
                                         } catch (e: SocketException) {
                                             e.printStackTrace()
                                         }
+                                    }
+                                }
+                            }
+                            MESSAGE_SEND_AVATAR -> {
+                                val avatar = msg.data.getByteArray("avatar")
+                                val avatarMsg = if (avatar == null) {
+                                    Protocol.removeAvatar()
+                                } else {
+                                    Protocol.avatar(avatar)
+                                }
+                                for (session in sessions.values) {
+                                    try {
+                                        session.encryptAndSend(avatarMsg, usePadding)
+                                    } catch (e: SocketException) {
+                                        e.printStackTrace()
                                     }
                                 }
                             }
@@ -492,6 +534,20 @@ class AIRAService : Service() {
             }
         }
         usePadding = AIRADatabase.getUsePadding()
+    }
+
+    private fun setAvatarUuid(sessionId: Int, avatarUuid: String?) {
+        val contact = contacts[sessionId]
+        if (contact == null) {
+            if (avatarUuid == null) {
+                savedAvatars.remove(sessionId)
+            } else {
+                savedAvatars[sessionId] = avatarUuid
+            }
+        } else {
+            AIRADatabase.setContactAvatar(contact.uuid, avatarUuid)
+            contact.avatar = avatarUuid
+        }
     }
 
     private fun encryptNextChunk(session: Session, filesSender: FilesSender) {
@@ -566,22 +622,6 @@ class AIRAService : Service() {
                                             shouldCloseSession = true
                                         } else {
                                             when (buffer[0]) {
-                                                Protocol.ASK_NAME -> {
-                                                    identityName?.let { name ->
-                                                        session.encryptAndSend(Protocol.tellName(name), usePadding)
-                                                    }
-                                                }
-                                                Protocol.TELL_NAME -> {
-                                                    val name = StringUtils.sanitizeName(buffer.sliceArray(1 until buffer.size).decodeToString())
-                                                    uiCallbacks?.onNameTold(sessionId, name)
-                                                    val contact = contacts[sessionId]
-                                                    if (contact == null) {
-                                                        savedNames[sessionId] = name
-                                                    } else {
-                                                        contact.name = name
-                                                        AIRADatabase.changeContactName(contact.uuid, name)
-                                                    }
-                                                }
                                                 Protocol.LARGE_FILE_CHUNK -> {
                                                     receiveFileTransfers[sessionId]?.let { filesReceiver ->
                                                         val file = filesReceiver.files[filesReceiver.index]
@@ -713,6 +753,38 @@ class AIRAService : Service() {
                                                             }
                                                         }
                                                     }
+                                                }
+                                                Protocol.ASK_PROFILE_INFO -> {
+                                                    identityName?.let { name ->
+                                                        session.encryptAndSend(Protocol.name(name), usePadding)
+                                                    }
+                                                    AIRADatabase.getIdentityAvatar(Constants.getDatabaseFolder(this))?.let { avatar ->
+                                                        session.encryptAndSend(Protocol.avatar(avatar), usePadding)
+                                                    }
+                                                }
+                                                Protocol.NAME -> {
+                                                    val name = StringUtils.sanitizeName(buffer.sliceArray(1 until buffer.size).decodeToString())
+                                                    uiCallbacks?.onNameTold(sessionId, name)
+                                                    val contact = contacts[sessionId]
+                                                    if (contact == null) {
+                                                        savedNames[sessionId] = name
+                                                    } else {
+                                                        contact.name = name
+                                                        AIRADatabase.changeContactName(contact.uuid, name)
+                                                    }
+                                                }
+                                                Protocol.AVATAR -> {
+                                                    if (buffer.size < Constants.MAX_AVATAR_SIZE) {
+                                                        val avatar = buffer.sliceArray(1 until buffer.size)
+                                                        uiCallbacks?.onAvatarChanged(sessionId, avatar)
+                                                        AIRADatabase.storeAvatar(avatar)?.let { avatarUuid ->
+                                                            setAvatarUuid(sessionId, avatarUuid)
+                                                        }
+                                                    }
+                                                }
+                                                Protocol.REMOVE_AVATAR -> {
+                                                    uiCallbacks?.onAvatarChanged(sessionId, null)
+                                                    setAvatarUuid(sessionId, null)
                                                 }
                                                 else -> {
                                                     when (buffer[0]){

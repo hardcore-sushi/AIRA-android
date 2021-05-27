@@ -29,6 +29,7 @@ class ChatActivity : ServiceBoundActivity() {
     private lateinit var binding: ActivityChatBinding
     private var sessionId = -1
     private lateinit var sessionName: String
+    private var avatar: ByteArray? = null
     private lateinit var chatAdapter: ChatAdapter
     private var lastLoadedMessageOffset = 0
     private val filePicker = registerForActivityResult(ActivityResultContracts.GetMultipleContents()) { uris ->
@@ -48,7 +49,7 @@ class ChatActivity : ServiceBoundActivity() {
         if (sessionId != -1) {
             intent.getStringExtra("sessionName")?.let { name ->
                 sessionName = name
-                binding.toolbar.textAvatar.setLetterFrom(name)
+                binding.toolbar.avatar.setTextAvatar(name)
                 binding.toolbar.title.text = name
                 chatAdapter = ChatAdapter(this@ChatActivity, ::onClickSaveFile)
                 binding.recyclerChat.apply {
@@ -94,7 +95,18 @@ class ChatActivity : ServiceBoundActivity() {
                         airaService = binder.getService()
 
                         chatAdapter.clear()
-                        airaService.contacts[sessionId]?.let { contact ->
+                        val contact = airaService.contacts[sessionId]
+                        if (contact == null) {
+                            airaService.savedAvatars[sessionId]
+                        } else {
+                            contact.avatar
+                        }?.let {
+                            AIRADatabase.loadAvatar(it)?.let { image ->
+                                avatar = image
+                                binding.toolbar.avatar.setImageAvatar(image)
+                            }
+                        }
+                        if (contact != null) {
                             displayIconTrustLevel(true, contact.verified)
                             loadMsgs(contact.uuid)
                         }
@@ -126,6 +138,7 @@ class ChatActivity : ServiceBoundActivity() {
                                         val inputManager = getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager
                                         inputManager.hideSoftInputFromWindow(binding.editMessage.windowToken, 0)
                                         binding.bottomPanel.visibility = View.GONE
+                                        invalidateOptionsMenu()
                                     }
                                 }
                             }
@@ -133,7 +146,19 @@ class ChatActivity : ServiceBoundActivity() {
                                 if (this@ChatActivity.sessionId == sessionId) {
                                     runOnUiThread {
                                         sessionName = name
-                                        title = name
+                                        binding.toolbar.title.text = name
+                                    }
+                                }
+                            }
+                            override fun onAvatarChanged(sessionId: Int, avatar: ByteArray?) {
+                                if (this@ChatActivity.sessionId == sessionId) {
+                                    runOnUiThread {
+                                        this@ChatActivity.avatar = avatar
+                                        if (avatar == null) {
+                                            binding.toolbar.avatar.setTextAvatar(sessionName)
+                                        } else {
+                                            binding.toolbar.avatar.setImageAvatar(avatar)
+                                        }
                                     }
                                 }
                             }
@@ -151,7 +176,6 @@ class ChatActivity : ServiceBoundActivity() {
                                     false
                                 }
                             }
-
                             override fun onAskLargeFiles(sessionId: Int, name: String, filesReceiver: FilesReceiver): Boolean {
                                 return if (this@ChatActivity.sessionId == sessionId) {
                                     runOnUiThread {
@@ -202,15 +226,17 @@ class ChatActivity : ServiceBoundActivity() {
     override fun onCreateOptionsMenu(menu: Menu): Boolean {
         menuInflater.inflate(R.menu.chat_activity, menu)
         val contact = airaService.contacts[sessionId]
+        val isOnline = airaService.isOnline(sessionId)
         menu.findItem(R.id.delete_conversation).isVisible = contact != null
-        menu.findItem(R.id.set_as_contact).isVisible = contact == null
+        menu.findItem(R.id.set_as_contact).isVisible = contact == null && isOnline
         menu.findItem(R.id.remove_contact).isVisible = contact != null
         if (contact == null) {
             menu.findItem(R.id.verify).isVisible = false
         } else {
             menu.findItem(R.id.verify).isVisible = !contact.verified
         }
-        menu.findItem(R.id.refresh_name).isEnabled = airaService.isOnline(sessionId)
+        menu.findItem(R.id.refresh_profile).isEnabled = isOnline
+        menu.findItem(R.id.session_info).isVisible = isOnline || contact != null
         return true
     }
 
@@ -232,7 +258,7 @@ class ChatActivity : ServiceBoundActivity() {
                 true
             }
             R.id.remove_contact -> {
-                AlertDialog.Builder(this)
+                AlertDialog.Builder(this, R.style.CustomAlertDialog)
                         .setTitle(R.string.warning)
                         .setMessage(R.string.ask_remove_contact)
                         .setPositiveButton(R.string.delete) { _, _ ->
@@ -252,7 +278,7 @@ class ChatActivity : ServiceBoundActivity() {
                     val dialogBinding = DialogFingerprintsBinding.inflate(layoutInflater)
                     dialogBinding.textLocalFingerprint.text = localFingerprint
                     dialogBinding.textPeerFingerprint.text = peerFingerprint
-                    AlertDialog.Builder(this)
+                    AlertDialog.Builder(this, R.style.CustomAlertDialog)
                         .setTitle(R.string.verifying_contact)
                         .setView(dialogBinding.root)
                         .setPositiveButton(R.string.they_match) { _, _ ->
@@ -267,7 +293,7 @@ class ChatActivity : ServiceBoundActivity() {
                 true
             }
             R.id.delete_conversation -> {
-                AlertDialog.Builder(this)
+                AlertDialog.Builder(this, R.style.CustomAlertDialog)
                         .setTitle(R.string.warning)
                         .setMessage(R.string.ask_delete_conversation)
                         .setPositiveButton(R.string.delete) { _, _ ->
@@ -279,8 +305,8 @@ class ChatActivity : ServiceBoundActivity() {
                         .show()
                 true
             }
-            R.id.refresh_name -> {
-                airaService.sendTo(sessionId, Protocol.askName())
+            R.id.refresh_profile -> {
+                airaService.sendTo(sessionId, Protocol.askProfileInfo())
                 true
             }
             else -> super.onOptionsItemSelected(item)
@@ -315,35 +341,40 @@ class ChatActivity : ServiceBoundActivity() {
     private fun showSessionInfo() {
         val contact = airaService.contacts[sessionId]
         val session = airaService.sessions[sessionId]
-        val publicKey = contact?.publicKey ?: session?.peerPublicKey
-        val dialogBinding = DialogInfoBinding.inflate(layoutInflater)
-        dialogBinding.textAvatar.setLetterFrom(sessionName)
-        dialogBinding.textFingerprint.text = StringUtils.beautifyFingerprint(generateFingerprint(publicKey!!))
-        if (session == null) {
-            dialogBinding.onlineFields.visibility = View.GONE
-        } else {
-            dialogBinding.textIp.text = session.ip
-            dialogBinding.textOutgoing.text = getString(if (session.outgoing) {
-                R.string.outgoing
+        (contact?.publicKey ?: session?.peerPublicKey)?.let { publicKey -> //can be null if disconnected and not a contact
+            val dialogBinding = DialogInfoBinding.inflate(layoutInflater)
+            if (avatar == null) {
+                dialogBinding.avatar.setTextAvatar(sessionName)
             } else {
-                R.string.incoming
-            })
-        }
-        dialogBinding.textIsContact.text = getString(if (contact == null) {
-            dialogBinding.fieldIsVerified.visibility = View.GONE
-            R.string.no
-        } else {
-            dialogBinding.textIsVerified.text = getString(if (contact.verified) {
-                R.string.yes
+                dialogBinding.avatar.setImageAvatar(avatar!!)
+            }
+            dialogBinding.textFingerprint.text = StringUtils.beautifyFingerprint(generateFingerprint(publicKey))
+            if (session == null) {
+                dialogBinding.onlineFields.visibility = View.GONE
             } else {
+                dialogBinding.textIp.text = session.ip
+                dialogBinding.textOutgoing.text = getString(if (session.outgoing) {
+                    R.string.outgoing
+                } else {
+                    R.string.incoming
+                })
+            }
+            dialogBinding.textIsContact.text = getString(if (contact == null) {
+                dialogBinding.fieldIsVerified.visibility = View.GONE
                 R.string.no
+            } else {
+                dialogBinding.textIsVerified.text = getString(if (contact.verified) {
+                    R.string.yes
+                } else {
+                    R.string.no
+                })
+                R.string.yes
             })
-            R.string.yes
-        })
-        AlertDialog.Builder(this)
-            .setTitle(sessionName)
-            .setView(dialogBinding.root)
-            .setPositiveButton(R.string.ok, null)
-            .show()
+            AlertDialog.Builder(this, R.style.CustomAlertDialog)
+                .setTitle(sessionName)
+                .setView(dialogBinding.root)
+                .setPositiveButton(R.string.ok, null)
+                .show()
+        }
     }
 }

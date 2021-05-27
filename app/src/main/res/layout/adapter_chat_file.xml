@@ -19,7 +19,8 @@
             android:layout_width="@dimen/image_button_size"
             android:layout_height="@dimen/image_button_size"
             android:src="@drawable/ic_save"
-            style="@style/ImageButton"/>
+            style="@style/ImageButton"
+            android:contentDescription="@string/download" />
 
         <TextView
             android:id="@+id/text_filename"

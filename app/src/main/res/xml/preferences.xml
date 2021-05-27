@@ -3,6 +3,12 @@
 
     <PreferenceCategory android:title="@string/identity">
 
+        <Preference
+            android:key="identityAvatar"
+            android:title="Identity Avatar"
+            android:summary="The avatar of your identity. Shown to all active sessions."
+            android:icon="@drawable/ic_face"/>
+
         <EditTextPreference
             android:key="identityName"
             android:title="@string/identity_name"

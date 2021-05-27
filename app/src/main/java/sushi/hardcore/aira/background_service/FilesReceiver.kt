@@ -28,7 +28,7 @@ class FilesReceiver(
             filesInfo.appendLine(file.fileName+" ("+FileUtils.formatSize(file.fileSize)+')')
         }
         dialogBinding.textFilesInfo.text = filesInfo.substring(0, filesInfo.length-1)
-        AlertDialog.Builder(activity)
+        AlertDialog.Builder(activity, R.style.CustomAlertDialog)
                 .setTitle(R.string.download_file_request)
                 .setView(dialogBinding.root)
                 .setCancelable(false)

@@ -10,6 +10,7 @@ object Constants {
     const val fileSizeLimit = 32760000
     const val MSG_LOADING_COUNT = 20
     const val FILE_CHUNK_SIZE = 1023996
+    const val MAX_AVATAR_SIZE = 10000000
     private const val databaseName = "AIRA.db"
 
     fun getDatabaseFolder(context: Context): String {

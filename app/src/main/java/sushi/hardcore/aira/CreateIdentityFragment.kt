@@ -1,5 +1,6 @@
 package sushi.hardcore.aira
 
+import android.content.Context
 import android.content.Intent
 import android.os.Bundle
 import androidx.fragment.app.Fragment
@@ -7,18 +8,31 @@ import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.widget.Toast
+import androidx.appcompat.app.AppCompatActivity
 import sushi.hardcore.aira.databinding.FragmentCreateIdentityBinding
+import sushi.hardcore.aira.utils.AvatarPicker
 
-class CreateIdentityFragment : Fragment() {
+class CreateIdentityFragment(private val activity: AppCompatActivity) : Fragment() {
     private external fun createNewIdentity(databaseFolder: String, name: String, password: ByteArray?): Boolean
 
     companion object {
-        fun newInstance(): CreateIdentityFragment {
-            return CreateIdentityFragment()
+        fun newInstance(activity: AppCompatActivity): CreateIdentityFragment {
+            return CreateIdentityFragment(activity)
         }
     }
 
+    private val avatarPicker = AvatarPicker(activity) { picker, avatar ->
+        picker.setOnAvatarCompressed { compressedAvatar ->
+            AIRADatabase.setIdentityAvatar(Constants.getDatabaseFolder(activity), compressedAvatar)
+        }
+        avatar.circleCrop().into(binding.avatar)
+    }
     private lateinit var binding: FragmentCreateIdentityBinding
+
+    override fun onAttach(context: Context) {
+        super.onAttach(context)
+        avatarPicker.register()
+    }
 
     override fun onCreateView(inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?): View {
         binding = FragmentCreateIdentityBinding.inflate(inflater, container, false)
@@ -26,6 +40,9 @@ class CreateIdentityFragment : Fragment() {
     }
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
+        binding.buttonSetAvatar.setOnClickListener {
+            avatarPicker.launch()
+        }
         binding.checkboxEnablePassword.setOnCheckedChangeListener { _, isChecked ->
             if (isChecked) {
                 binding.editPassword.visibility = View.VISIBLE
@@ -63,7 +80,7 @@ class CreateIdentityFragment : Fragment() {
             val intent = Intent(activity, MainActivity::class.java)
             intent.putExtra("identityName", identityName)
             startActivity(intent)
-            activity?.finish()
+            activity.finish()
         } else {
             Toast.makeText(activity, R.string.identity_create_failed, Toast.LENGTH_SHORT).show()
         }

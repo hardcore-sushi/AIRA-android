@@ -15,9 +15,9 @@ pub fn to_uuid_bytes(bytes: &[u8]) -> Option<Bytes> {
 #[macro_export]
 macro_rules! print_error {
     ($arg:tt) => ({
-        println!("[{}:{}] {}", file!(), line!(), $arg);
+        log::error!("[{}:{}] {}", file!(), line!(), $arg);
     });
     ($($arg:tt)*) => ({
-        println!("[{}:{}] {}", file!(), line!(), format_args!($($arg)*));
+        log::error!("[{}:{}] {}", file!(), line!(), format_args!($($arg)*));
     })
 }
