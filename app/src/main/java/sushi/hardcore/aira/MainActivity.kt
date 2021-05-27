@@ -71,9 +71,9 @@ class MainActivity : ServiceBoundActivity() {
             return false
         }
 
-        override fun onAskLargeFiles(sessionId: Int, name: String, filesReceiver: FilesReceiver): Boolean {
+        override fun onAskLargeFiles(sessionId: Int, filesReceiver: FilesReceiver): Boolean {
             runOnUiThread {
-                filesReceiver.ask(this@MainActivity, name)
+                filesReceiver.ask(this@MainActivity)
             }
             return true
         }
@@ -322,7 +322,6 @@ class MainActivity : ServiceBoundActivity() {
     private fun launchChatActivity(session: Session) {
         startActivity(Intent(this, ChatActivity::class.java).apply {
             putExtra("sessionId", session.sessionId)
-            putExtra("sessionName", airaService.getNameOf(session.sessionId))
         })
     }
 

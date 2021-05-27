@@ -33,12 +33,15 @@ class Avatar @JvmOverloads constructor(
         }
     }
 
-    fun setTextAvatar(name: String) {
-        if (name.isNotEmpty()) {
-            binding.textLetter.text = name[0].toString()
-            binding.imageAvatar.visibility = View.GONE
-            binding.textAvatar.visibility = View.VISIBLE
+    fun setTextAvatar(name: String?) {
+        val char = if (name == null || name.isEmpty()) {
+            '?'
+        } else {
+            name[0]
         }
+        binding.textLetter.text = char.toString()
+        binding.imageAvatar.visibility = View.GONE
+        binding.textAvatar.visibility = View.VISIBLE
     }
 
     fun setImageAvatar(avatar: ByteArray) {

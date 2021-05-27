@@ -31,18 +31,16 @@ class SessionAdapter(private val activity: AppCompatActivity): BaseAdapter() {
         val view: View = convertView ?: inflater.inflate(R.layout.adapter_session, parent, false)
         val currentSession = getItem(position)
         view.findViewById<TextView>(R.id.text_name).apply {
-            val avatarName = if (currentSession.name == null) {
+            setTextColor(if (currentSession.name == null) {
                 text = currentSession.ip
-                setTextColor(Color.RED)
-                "?"
+                Color.RED
             } else {
                 text = currentSession.name
-                setTextColor(Color.WHITE)
-                currentSession.name!!
-            }
+                Color.WHITE
+            })
             val avatar = view.findViewById<Avatar>(R.id.avatar)
             if (currentSession.avatar == null) {
-                avatar.setTextAvatar(avatarName)
+                avatar.setTextAvatar(currentSession.name)
             } else {
                 avatar.setImageAvatar(currentSession.avatar!!)
             }

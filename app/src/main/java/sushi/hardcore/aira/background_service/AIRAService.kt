@@ -108,7 +108,7 @@ class AIRAService : Service() {
         fun onNameTold(sessionId: Int, name: String)
         fun onAvatarChanged(sessionId: Int, avatar: ByteArray?)
         fun onNewMessage(sessionId: Int, data: ByteArray): Boolean
-        fun onAskLargeFiles(sessionId: Int, name: String, filesReceiver: FilesReceiver): Boolean
+        fun onAskLargeFiles(sessionId: Int, filesReceiver: FilesReceiver): Boolean
     }
 
     fun connectTo(ip: String) {
@@ -188,7 +188,7 @@ class AIRAService : Service() {
         return sessions.contains(sessionId)
     }
 
-    fun getNameOf(sessionId: Int): String {
+    private fun getNameOf(sessionId: Int): String {
         return contacts[sessionId]?.name ?: savedNames[sessionId] ?: sessions[sessionId]!!.ip
     }
 
@@ -343,11 +343,10 @@ class AIRAService : Service() {
     }
 
     private fun sendNotification(sessionId: Int, msgContent: ByteArray) {
-        val name = getNameOf(sessionId)
         val notificationBuilder = NotificationCompat.Builder(this, MESSAGES_NOTIFICATION_CHANNEL_ID)
                 .setCategory(NotificationCompat.CATEGORY_MESSAGE)
                 .setSmallIcon(R.drawable.ic_launcher)
-                .setContentTitle(name)
+                .setContentTitle(getNameOf(sessionId))
                 .setContentText(
                         if (msgContent[0] == Protocol.MESSAGE) {
                             msgContent.decodeToString(1)
@@ -358,7 +357,6 @@ class AIRAService : Service() {
                 .setContentIntent(
                         PendingIntent.getActivity(this, 0, Intent(this, ChatActivity::class.java).apply {
                                 putExtra("sessionId", sessionId)
-                                putExtra("sessionName", name)
                         }, 0)
                 )
                 .setAutoCancel(true)
@@ -706,7 +704,7 @@ class AIRAService : Service() {
                                                 Protocol.ASK_LARGE_FILES -> {
                                                     if (!receiveFileTransfers.containsKey(sessionId) && !sendFileTransfers.containsKey(sessionId)) {
                                                         Protocol.parseAskFiles(buffer)?.let { files ->
-                                                            val name = getNameOf(sessionId)
+                                                            val sessionName = getNameOf(sessionId)
                                                             val filesReceiver = FilesReceiver(
                                                                     files,
                                                                     { filesReceiver ->
@@ -723,12 +721,12 @@ class AIRAService : Service() {
                                                                     },
                                                                     this,
                                                                     notificationManager,
-                                                                    name
+                                                                    sessionName
                                                             )
                                                             receiveFileTransfers[sessionId] = filesReceiver
                                                             var shouldSendNotification = true
                                                             if (!isAppInBackground) {
-                                                                if (uiCallbacks?.onAskLargeFiles(sessionId, name, filesReceiver) == true) {
+                                                                if (uiCallbacks?.onAskLargeFiles(sessionId, filesReceiver) == true) {
                                                                     shouldSendNotification = false
                                                                 }
                                                             }
@@ -737,12 +735,11 @@ class AIRAService : Service() {
                                                                         .setCategory(NotificationCompat.CATEGORY_EVENT)
                                                                         .setSmallIcon(R.drawable.ic_launcher)
                                                                         .setContentTitle(getString(R.string.download_file_request))
-                                                                        .setContentText(getString(R.string.want_to_send_files, name))
+                                                                        .setContentText(getString(R.string.want_to_send_files, sessionName))
                                                                         .setOngoing(true) //not cancelable
                                                                         .setContentIntent(
                                                                                 PendingIntent.getActivity(this, 0, Intent(this, ChatActivity::class.java).apply {
                                                                                     putExtra("sessionId", sessionId)
-                                                                                    putExtra("sessionName", name)
                                                                                 }, 0)
                                                                         )
                                                                         .setDefaults(Notification.DEFAULT_ALL)

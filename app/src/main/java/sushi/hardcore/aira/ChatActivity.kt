@@ -28,7 +28,7 @@ class ChatActivity : ServiceBoundActivity() {
 
     private lateinit var binding: ActivityChatBinding
     private var sessionId = -1
-    private lateinit var sessionName: String
+    private var sessionName: String? = null
     private var avatar: ByteArray? = null
     private lateinit var chatAdapter: ChatAdapter
     private var lastLoadedMessageOffset = 0
@@ -47,155 +47,159 @@ class ChatActivity : ServiceBoundActivity() {
 
         sessionId = intent.getIntExtra("sessionId", -1)
         if (sessionId != -1) {
-            intent.getStringExtra("sessionName")?.let { name ->
-                sessionName = name
-                binding.toolbar.avatar.setTextAvatar(name)
-                binding.toolbar.title.text = name
-                chatAdapter = ChatAdapter(this@ChatActivity, ::onClickSaveFile)
-                binding.recyclerChat.apply {
-                    adapter = chatAdapter
-                    layoutManager = LinearLayoutManager(this@ChatActivity, LinearLayoutManager.VERTICAL, false).apply {
-                        stackFromEnd = true
-                    }
-                    addOnScrollListener(object : RecyclerView.OnScrollListener() {
-                        fun loadMsgsIfNeeded(recyclerView: RecyclerView) {
-                            if (!recyclerView.canScrollVertically(-1) && isServiceInitialized()) {
-                                airaService.contacts[sessionId]?.let { contact ->
-                                    loadMsgs(contact.uuid)
-                                }
+            chatAdapter = ChatAdapter(this@ChatActivity, ::onClickSaveFile)
+            binding.recyclerChat.apply {
+                adapter = chatAdapter
+                layoutManager = LinearLayoutManager(this@ChatActivity, LinearLayoutManager.VERTICAL, false).apply {
+                    stackFromEnd = true
+                }
+                addOnScrollListener(object : RecyclerView.OnScrollListener() {
+                    fun loadMsgsIfNeeded(recyclerView: RecyclerView) {
+                        if (!recyclerView.canScrollVertically(-1) && isServiceInitialized()) {
+                            airaService.contacts[sessionId]?.let { contact ->
+                                loadMsgs(contact.uuid)
                             }
                         }
-                        override fun onScrolled(recyclerView: RecyclerView, dx: Int, dy: Int) {
-                            loadMsgsIfNeeded(recyclerView)
-                        }
-                        override fun onScrollStateChanged(recyclerView: RecyclerView, newState: Int) {
-                            loadMsgsIfNeeded(recyclerView)
-                        }
-                    })
+                    }
+                    override fun onScrolled(recyclerView: RecyclerView, dx: Int, dy: Int) {
+                        loadMsgsIfNeeded(recyclerView)
+                    }
+                    override fun onScrollStateChanged(recyclerView: RecyclerView, newState: Int) {
+                        loadMsgsIfNeeded(recyclerView)
+                    }
+                })
+            }
+            binding.toolbar.toolbar.setOnClickListener {
+                showSessionInfo()
+            }
+            binding.buttonSend.setOnClickListener {
+                val msg = binding.editMessage.text.toString()
+                airaService.sendTo(sessionId, Protocol.newMessage(msg))
+                binding.editMessage.text.clear()
+                chatAdapter.newMessage(ChatItem(true, Protocol.newMessage(msg)))
+                if (airaService.contacts.contains(sessionId)) {
+                    lastLoadedMessageOffset += 1
                 }
-                binding.toolbar.toolbar.setOnClickListener {
-                    showSessionInfo()
-                }
-                binding.buttonSend.setOnClickListener {
-                    val msg = binding.editMessage.text.toString()
-                    airaService.sendTo(sessionId, Protocol.newMessage(msg))
-                    binding.editMessage.text.clear()
-                    chatAdapter.newMessage(ChatItem(true, Protocol.newMessage(msg)))
-                    if (airaService.contacts.contains(sessionId)) {
-                        lastLoadedMessageOffset += 1
+                binding.recyclerChat.smoothScrollToPosition(chatAdapter.itemCount)
+            }
+            binding.buttonAttach.setOnClickListener {
+                filePicker.launch("*/*")
+            }
+            serviceConnection = object : ServiceConnection {
+                override fun onServiceConnected(componentName: ComponentName?, service: IBinder) {
+                    val binder = service as AIRAService.AIRABinder
+                    airaService = binder.getService()
+
+                    chatAdapter.clear()
+                    val contact = airaService.contacts[sessionId]
+                    val avatar = if (contact == null) {
+                        sessionName = airaService.savedNames[sessionId]
+                        airaService.savedAvatars[sessionId]
+                    } else {
+                        sessionName = contact.name
+                        contact.avatar
+                    }
+                    binding.toolbar.title.text = sessionName ?: airaService.sessions[sessionId]!!.ip
+                    if (avatar == null) {
+                        binding.toolbar.avatar.setTextAvatar(sessionName)
+                    } else {
+                        AIRADatabase.loadAvatar(avatar)?.let { image ->
+                            this@ChatActivity.avatar = image
+                            binding.toolbar.avatar.setImageAvatar(image)
+                        }
+                    }
+                    if (contact != null) {
+                        displayIconTrustLevel(true, contact.verified)
+                        loadMsgs(contact.uuid)
+                    }
+                    airaService.savedMsgs[sessionId]?.let {
+                        for (chatItem in it.asReversed()) {
+                            chatAdapter.newLoadedMessage(chatItem)
+                        }
+                    }
+                    airaService.receiveFileTransfers[sessionId]?.let {
+                        if (it.shouldAsk) {
+                            it.ask(this@ChatActivity)
+                        }
                     }
                     binding.recyclerChat.smoothScrollToPosition(chatAdapter.itemCount)
-                }
-                binding.buttonAttach.setOnClickListener {
-                    filePicker.launch("*/*")
-                }
-                serviceConnection = object : ServiceConnection {
-                    override fun onServiceConnected(name: ComponentName?, service: IBinder) {
-                        val binder = service as AIRAService.AIRABinder
-                        airaService = binder.getService()
-
-                        chatAdapter.clear()
-                        val contact = airaService.contacts[sessionId]
-                        if (contact == null) {
-                            airaService.savedAvatars[sessionId]
-                        } else {
-                            contact.avatar
-                        }?.let {
-                            AIRADatabase.loadAvatar(it)?.let { image ->
-                                avatar = image
-                                binding.toolbar.avatar.setImageAvatar(image)
-                            }
-                        }
-                        if (contact != null) {
-                            displayIconTrustLevel(true, contact.verified)
-                            loadMsgs(contact.uuid)
-                        }
-                        airaService.savedMsgs[sessionId]?.let {
-                            for (chatItem in it.asReversed()) {
-                                chatAdapter.newLoadedMessage(chatItem)
-                            }
-                        }
-                        airaService.receiveFileTransfers[sessionId]?.let {
-                            if (it.shouldAsk) {
-                                it.ask(this@ChatActivity, sessionName)
-                            }
-                        }
-                        binding.recyclerChat.smoothScrollToPosition(chatAdapter.itemCount)
-                        val showBottomPanel = {
-                            binding.bottomPanel.visibility = View.VISIBLE
-                        }
-                        airaService.uiCallbacks = object : AIRAService.UiCallbacks {
-                            override fun onNewSession(sessionId: Int, ip: String) {
-                                if (this@ChatActivity.sessionId == sessionId) {
-                                    runOnUiThread {
-                                        showBottomPanel()
-                                    }
-                                }
-                            }
-                            override fun onSessionDisconnect(sessionId: Int) {
-                                if (this@ChatActivity.sessionId == sessionId) {
-                                    runOnUiThread {
-                                        val inputManager = getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager
-                                        inputManager.hideSoftInputFromWindow(binding.editMessage.windowToken, 0)
-                                        binding.bottomPanel.visibility = View.GONE
-                                        invalidateOptionsMenu()
-                                    }
-                                }
-                            }
-                            override fun onNameTold(sessionId: Int, name: String) {
-                                if (this@ChatActivity.sessionId == sessionId) {
-                                    runOnUiThread {
-                                        sessionName = name
-                                        binding.toolbar.title.text = name
-                                    }
-                                }
-                            }
-                            override fun onAvatarChanged(sessionId: Int, avatar: ByteArray?) {
-                                if (this@ChatActivity.sessionId == sessionId) {
-                                    runOnUiThread {
-                                        this@ChatActivity.avatar = avatar
-                                        if (avatar == null) {
-                                            binding.toolbar.avatar.setTextAvatar(sessionName)
-                                        } else {
-                                            binding.toolbar.avatar.setImageAvatar(avatar)
-                                        }
-                                    }
-                                }
-                            }
-                            override fun onNewMessage(sessionId: Int, data: ByteArray): Boolean {
-                                return if (this@ChatActivity.sessionId == sessionId) {
-                                    runOnUiThread {
-                                        chatAdapter.newMessage(ChatItem(false, data))
-                                        binding.recyclerChat.smoothScrollToPosition(chatAdapter.itemCount)
-                                    }
-                                    if (airaService.contacts.contains(sessionId)) {
-                                        lastLoadedMessageOffset += 1
-                                    }
-                                    !airaService.isAppInBackground
-                                } else {
-                                    false
-                                }
-                            }
-                            override fun onAskLargeFiles(sessionId: Int, name: String, filesReceiver: FilesReceiver): Boolean {
-                                return if (this@ChatActivity.sessionId == sessionId) {
-                                    runOnUiThread {
-                                        filesReceiver.ask(this@ChatActivity, name)
-                                    }
-                                    true
-                                } else {
-                                    false
-                                }
-                            }
-                        }
-                        airaService.isAppInBackground = false
-                        if (airaService.isOnline(sessionId)) {
-                            showBottomPanel()
-                            binding.recyclerChat.updatePadding(bottom = 0)
-                        }
-                        airaService.setSeen(sessionId, true)
+                    val showBottomPanel = {
+                        binding.bottomPanel.visibility = View.VISIBLE
                     }
-                    override fun onServiceDisconnected(name: ComponentName?) {}
+                    airaService.uiCallbacks = object : AIRAService.UiCallbacks {
+                        override fun onNewSession(sessionId: Int, ip: String) {
+                            if (this@ChatActivity.sessionId == sessionId) {
+                                runOnUiThread {
+                                    showBottomPanel()
+                                }
+                            }
+                        }
+                        override fun onSessionDisconnect(sessionId: Int) {
+                            if (this@ChatActivity.sessionId == sessionId) {
+                                runOnUiThread {
+                                    val inputManager = getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager
+                                    inputManager.hideSoftInputFromWindow(binding.editMessage.windowToken, 0)
+                                    binding.bottomPanel.visibility = View.GONE
+                                    invalidateOptionsMenu()
+                                }
+                            }
+                        }
+                        override fun onNameTold(sessionId: Int, name: String) {
+                            if (this@ChatActivity.sessionId == sessionId) {
+                                runOnUiThread {
+                                    sessionName = name
+                                    binding.toolbar.title.text = name
+                                    if (avatar == null) {
+                                        binding.toolbar.avatar.setTextAvatar(name)
+                                    }
+                                }
+                            }
+                        }
+                        override fun onAvatarChanged(sessionId: Int, avatar: ByteArray?) {
+                            if (this@ChatActivity.sessionId == sessionId) {
+                                runOnUiThread {
+                                    this@ChatActivity.avatar = avatar
+                                    if (avatar == null) {
+                                        binding.toolbar.avatar.setTextAvatar(sessionName)
+                                    } else {
+                                        binding.toolbar.avatar.setImageAvatar(avatar)
+                                    }
+                                }
+                            }
+                        }
+                        override fun onNewMessage(sessionId: Int, data: ByteArray): Boolean {
+                            return if (this@ChatActivity.sessionId == sessionId) {
+                                runOnUiThread {
+                                    chatAdapter.newMessage(ChatItem(false, data))
+                                    binding.recyclerChat.smoothScrollToPosition(chatAdapter.itemCount)
+                                }
+                                if (airaService.contacts.contains(sessionId)) {
+                                    lastLoadedMessageOffset += 1
+                                }
+                                !airaService.isAppInBackground
+                            } else {
+                                false
+                            }
+                        }
+                        override fun onAskLargeFiles(sessionId: Int, filesReceiver: FilesReceiver): Boolean {
+                            return if (this@ChatActivity.sessionId == sessionId) {
+                                runOnUiThread {
+                                    filesReceiver.ask(this@ChatActivity)
+                                }
+                                true
+                            } else {
+                                false
+                            }
+                        }
+                    }
+                    airaService.isAppInBackground = false
+                    if (airaService.isOnline(sessionId)) {
+                        showBottomPanel()
+                        binding.recyclerChat.updatePadding(bottom = 0)
+                    }
+                    airaService.setSeen(sessionId, true)
                 }
+                override fun onServiceDisconnected(name: ComponentName?) {}
             }
         }
     }
@@ -251,9 +255,13 @@ class ChatActivity : ServiceBoundActivity() {
                 true
             }
             R.id.set_as_contact -> {
-                if (airaService.setAsContact(sessionId, sessionName)) {
-                    invalidateOptionsMenu()
-                    displayIconTrustLevel(true, false)
+                if (sessionName == null) {
+                    Toast.makeText(this, R.string.no_name_error, Toast.LENGTH_SHORT).show()
+                } else {
+                    if (airaService.setAsContact(sessionId, sessionName!!)) {
+                        invalidateOptionsMenu()
+                        displayIconTrustLevel(true, false)
+                    }
                 }
                 true
             }

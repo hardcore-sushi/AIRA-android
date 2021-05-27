@@ -15,14 +15,14 @@ class FilesReceiver(
         private val onAborted: (FilesReceiver) -> Unit,
         context: Context,
         notificationManager: NotificationManagerCompat,
-        sessionName: String
+        private val sessionName: String
 ): FilesTransfer(context, notificationManager, sessionName) {
     var shouldAsk = true
 
     @SuppressLint("SetTextI18n")
-    fun ask(activity: AppCompatActivity, senderName: String) {
+    fun ask(activity: AppCompatActivity) {
         val dialogBinding = DialogAskFileBinding.inflate(activity.layoutInflater)
-        dialogBinding.textTitle.text = activity.getString(R.string.want_to_send_files, senderName)+':'
+        dialogBinding.textTitle.text = activity.getString(R.string.want_to_send_files, sessionName)+':'
         val filesInfo = StringBuilder()
         for (file in files) {
             filesInfo.appendLine(file.fileName+" ("+FileUtils.formatSize(file.fileSize)+')')
