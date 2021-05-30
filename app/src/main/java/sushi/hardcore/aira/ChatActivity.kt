@@ -99,7 +99,8 @@ class ChatActivity : ServiceBoundActivity() {
                         sessionName = contact.name
                         contact.avatar
                     }
-                    binding.toolbar.title.text = sessionName ?: airaService.sessions[sessionId]!!.ip
+                    val ipName = sessionName ?: airaService.sessions[sessionId]!!.ip
+                    binding.toolbar.title.text = ipName
                     if (avatar == null) {
                         binding.toolbar.avatar.setTextAvatar(sessionName)
                     } else {
@@ -119,7 +120,7 @@ class ChatActivity : ServiceBoundActivity() {
                     }
                     airaService.receiveFileTransfers[sessionId]?.let {
                         if (it.shouldAsk) {
-                            it.ask(this@ChatActivity)
+                            it.ask(this@ChatActivity, ipName)
                         }
                     }
                     binding.recyclerChat.smoothScrollToPosition(chatAdapter.itemCount)
@@ -184,7 +185,7 @@ class ChatActivity : ServiceBoundActivity() {
                         override fun onAskLargeFiles(sessionId: Int, filesReceiver: FilesReceiver): Boolean {
                             return if (this@ChatActivity.sessionId == sessionId) {
                                 runOnUiThread {
-                                    filesReceiver.ask(this@ChatActivity)
+                                    filesReceiver.ask(this@ChatActivity, sessionName ?: airaService.sessions[sessionId]!!.ip)
                                 }
                                 true
                             } else {

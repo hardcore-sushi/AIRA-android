@@ -11,22 +11,26 @@ import sushi.hardcore.aira.R
 class FileTransferNotification(
         private val context: Context,
         private val notificationManager: NotificationManagerCompat,
-        private val sessionName: String
+        private val total: Int,
 ) {
+    private var fileName: String? = null
     private var fileSize = -1
+    private var index = 0
     private var transferred = 0
     private lateinit var notificationBuilder: NotificationCompat.Builder
     private var notificationId = -1
     private var isEnded = false
 
     fun initFileTransferNotification(id: Int, fileName: String, size: Int, cancelIntent: Intent) {
+        this.fileName = fileName
         fileSize = size
+        index += 1
         transferred = 0
         notificationBuilder = NotificationCompat.Builder(context, AIRAService.FILE_TRANSFER_NOTIFICATION_CHANNEL_ID)
                 .setCategory(NotificationCompat.CATEGORY_PROGRESS)
                 .setSmallIcon(R.drawable.ic_launcher)
-                .setContentTitle(sessionName)
-                .setContentText(fileName)
+                .setContentTitle(fileName)
+                .setContentText("0% ($index/$total)")
                 .setOngoing(true)
                 .setProgress(fileSize, 0, true)
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.KITKAT_WATCH) {
@@ -49,7 +53,10 @@ class FileTransferNotification(
 
     fun updateNotificationProgress(size: Int) {
         transferred += size
-        notificationBuilder.setProgress(fileSize, transferred, false)
+        val percent = (transferred.toFloat()/fileSize)*100
+        notificationBuilder
+            .setContentText("${"%.2f".format(percent)}% ($index/$total)")
+            .setProgress(fileSize, transferred, false)
         synchronized(this) {
             if (!isEnded) {
                 notificationManager.notify(notificationId, notificationBuilder.build())
@@ -64,7 +71,7 @@ class FileTransferNotification(
                     NotificationCompat.Builder(context, AIRAService.FILE_TRANSFER_NOTIFICATION_CHANNEL_ID)
                             .setCategory(NotificationCompat.CATEGORY_EVENT)
                             .setSmallIcon(R.drawable.ic_launcher)
-                            .setContentTitle(sessionName)
+                            .setContentTitle(fileName)
                             .setContentText(context.getString(string))
                             .build()
             )

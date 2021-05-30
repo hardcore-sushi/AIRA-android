@@ -73,7 +73,7 @@ class MainActivity : ServiceBoundActivity() {
 
         override fun onAskLargeFiles(sessionId: Int, filesReceiver: FilesReceiver): Boolean {
             runOnUiThread {
-                filesReceiver.ask(this@MainActivity)
+                filesReceiver.ask(this@MainActivity, airaService.getNameOf(sessionId))
             }
             return true
         }

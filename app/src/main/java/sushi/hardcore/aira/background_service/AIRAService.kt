@@ -169,7 +169,7 @@ class AIRAService : Service() {
 
     private fun sendLargeFilesTo(sessionId: Int, files: MutableList<SendFile>) {
         if (sendFileTransfers[sessionId] == null && receiveFileTransfers[sessionId] == null) {
-            val filesSender = FilesSender(files, this, notificationManager, getNameOf(sessionId))
+            val filesSender = FilesSender(files, this, notificationManager)
             initFileTransferNotification(sessionId, filesSender.fileTransferNotification, filesSender.files[0])
             sendFileTransfers[sessionId] = filesSender
             sendTo(sessionId, Protocol.askLargeFiles(files))
@@ -188,7 +188,7 @@ class AIRAService : Service() {
         return sessions.contains(sessionId)
     }
 
-    private fun getNameOf(sessionId: Int): String {
+    fun getNameOf(sessionId: Int): String {
         return contacts[sessionId]?.name ?: savedNames[sessionId] ?: sessions[sessionId]!!.ip
     }
 
@@ -648,7 +648,7 @@ class AIRAService : Service() {
                                                                         initFileTransferNotification(
                                                                                 sessionId,
                                                                                 filesReceiver.fileTransferNotification,
-                                                                                nextFile
+                                                                                nextFile,
                                                                         )
                                                                     }
                                                                 } else {
@@ -677,7 +677,7 @@ class AIRAService : Service() {
                                                                 initFileTransferNotification(
                                                                         sessionId,
                                                                         filesSender.fileTransferNotification,
-                                                                        nextFile
+                                                                        nextFile,
                                                                 )
                                                                 encryptNextChunk(session, filesSender)
                                                                 filesSender.nextChunk?.let {
@@ -704,14 +704,13 @@ class AIRAService : Service() {
                                                 Protocol.ASK_LARGE_FILES -> {
                                                     if (!receiveFileTransfers.containsKey(sessionId) && !sendFileTransfers.containsKey(sessionId)) {
                                                         Protocol.parseAskFiles(buffer)?.let { files ->
-                                                            val sessionName = getNameOf(sessionId)
                                                             val filesReceiver = FilesReceiver(
                                                                     files,
                                                                     { filesReceiver ->
                                                                         initFileTransferNotification(
                                                                                 sessionId,
                                                                                 filesReceiver.fileTransferNotification,
-                                                                                filesReceiver.files[0]
+                                                                                filesReceiver.files[0],
                                                                         )
                                                                         sendTo(sessionId, Protocol.acceptLargeFiles())
                                                                     }, { filesReceiver ->
@@ -721,7 +720,6 @@ class AIRAService : Service() {
                                                                     },
                                                                     this,
                                                                     notificationManager,
-                                                                    sessionName
                                                             )
                                                             receiveFileTransfers[sessionId] = filesReceiver
                                                             var shouldSendNotification = true
@@ -735,7 +733,7 @@ class AIRAService : Service() {
                                                                         .setCategory(NotificationCompat.CATEGORY_EVENT)
                                                                         .setSmallIcon(R.drawable.ic_launcher)
                                                                         .setContentTitle(getString(R.string.download_file_request))
-                                                                        .setContentText(getString(R.string.want_to_send_files, sessionName))
+                                                                        .setContentText(getString(R.string.want_to_send_files, getNameOf(sessionId)))
                                                                         .setOngoing(true) //not cancelable
                                                                         .setContentIntent(
                                                                                 PendingIntent.getActivity(this, 0, Intent(this, ChatActivity::class.java).apply {

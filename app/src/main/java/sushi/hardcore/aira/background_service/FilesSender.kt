@@ -7,8 +7,7 @@ class FilesSender(
         val files: List<SendFile>,
         context: Context,
         notificationManager: NotificationManagerCompat,
-        sessionName: String
-): FilesTransfer(context, notificationManager, sessionName) {
+): FilesTransfer(context, notificationManager, files.size) {
     val lastChunkSizes = mutableListOf<Int>()
     var nextChunk: ByteArray? = null
     val msgQueue = mutableListOf<ByteArray>()
