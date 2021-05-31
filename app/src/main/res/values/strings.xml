@@ -95,6 +95,7 @@
     <string name="message_hint">Send a message…</string>
     <string name="no_name_error">This session has no name !</string>
     <string name="invalid_ip">Invalid IP address</string>
+    <string name="unable_to_connect_to">Unable to connect to %s</string>
 
     <!--accessibility strings-->
     <string name="send_file">Send file</string>

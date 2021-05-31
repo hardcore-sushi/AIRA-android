@@ -39,6 +39,15 @@ class MainActivity : ServiceBoundActivity() {
         }
     }
     private val uiCallbacks = object : AIRAService.UiCallbacks {
+        override fun onConnectFailed(ip: String, errorMsg: String?) {
+            var msg = getString(R.string.unable_to_connect_to, ip)
+            errorMsg?.let {
+                msg += ": $it"
+            }
+            runOnUiThread {
+                Toast.makeText(this@MainActivity, msg, Toast.LENGTH_SHORT).show()
+            }
+        }
         override fun onNewSession(sessionId: Int, ip: String) {
             runOnUiThread {
                 handleNewSession(sessionId, ip)

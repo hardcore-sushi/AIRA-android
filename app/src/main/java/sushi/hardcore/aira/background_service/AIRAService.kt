@@ -103,6 +103,7 @@ class AIRAService : Service() {
     }
 
     interface UiCallbacks {
+        fun onConnectFailed(ip: String, errorMsg: String?)
         fun onNewSession(sessionId: Int, ip: String)
         fun onSessionDisconnect(sessionId: Int)
         fun onNameTold(sessionId: Int, name: String)
@@ -456,13 +457,20 @@ class AIRAService : Service() {
                             MESSAGE_CONNECT_TO -> {
                                 msg.data.getString("ip")?.let { ip ->
                                     Thread {
-                                        try {
-                                            val socket = SocketChannel.open()
-                                            if (socket.connect(InetSocketAddress(ip, Constants.port))) {
-                                                handleNewSocket(socket, true)
+                                        val addr = InetSocketAddress(ip, Constants.port)
+                                        if (addr.isUnresolved) {
+                                            uiCallbacks?.onConnectFailed(ip, getString(R.string.invalid_ip))
+                                        } else {
+                                            try {
+                                                val socket = SocketChannel.open()
+                                                if (socket.connect(addr)) {
+                                                    handleNewSocket(socket, true)
+                                                }
+                                            } catch (e: NoRouteToHostException) {
+                                                uiCallbacks?.onConnectFailed(ip, e.message)
+                                            } catch (e: ConnectException) {
+                                                uiCallbacks?.onConnectFailed(ip, e.message)
                                             }
-                                        } catch (e: ConnectException) {
-                                            Log.w("Connect failed", "$ip: "+e.message)
                                         }
                                     }.start()
                                 }

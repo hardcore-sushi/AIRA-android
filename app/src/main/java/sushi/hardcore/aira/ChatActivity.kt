@@ -130,6 +130,7 @@ class ChatActivity : ServiceBoundActivity() {
                         binding.bottomPanel.visibility = View.VISIBLE
                     }
                     airaService.uiCallbacks = object : AIRAService.UiCallbacks {
+                        override fun onConnectFailed(ip: String, errorMsg: String?) {}
                         override fun onNewSession(sessionId: Int, ip: String) {
                             if (this@ChatActivity.sessionId == sessionId) {
                                 runOnUiThread {
