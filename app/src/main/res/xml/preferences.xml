@@ -52,6 +52,20 @@
             android:title="@string/version"
             android:summary="@string/versionName"/>
 
+        <Preference
+            android:title="@string/github"
+            android:summary="@string/github_summary"
+            android:icon="@drawable/ic_github">
+            <intent android:action="android.intent.action.VIEW" android:data="https://github.com/hardcore-sushi/AIRA-android"/>
+        </Preference>
+
+        <Preference
+            android:title="@string/gitea"
+            android:summary="@string/gitea_summary"
+            android:icon="@drawable/ic_gitea">
+            <intent android:action="android.intent.action.VIEW" android:data="https://forge.chapril.org/hardcoresushi/AIRA-android/"/>
+        </Preference>
+
     </PreferenceCategory>
 
 </PreferenceScreen>

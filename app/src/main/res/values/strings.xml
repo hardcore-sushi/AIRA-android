@@ -96,6 +96,10 @@
     <string name="no_name_error">This session has no name !</string>
     <string name="invalid_ip">Invalid IP address</string>
     <string name="unable_to_connect_to">Unable to connect to %s</string>
+    <string name="github">GitHub</string>
+    <string name="github_summary">AIRA-android repository on GitHub.</string>
+    <string name="gitea">Gitea</string>
+    <string name="gitea_summary">AIRA-android repository on the Gitea instance of the Chapril project. Unlike GitHub, Gitea is fully free software and self-hosted.</string>
 
     <!--accessibility strings-->
     <string name="send_file">Send file</string>
