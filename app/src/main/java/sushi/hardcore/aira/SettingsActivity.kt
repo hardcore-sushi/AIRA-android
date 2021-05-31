@@ -22,6 +22,7 @@ import com.bumptech.glide.request.transition.Transition
 import sushi.hardcore.aira.background_service.AIRAService
 import sushi.hardcore.aira.databinding.ActivitySettingsBinding
 import sushi.hardcore.aira.databinding.ChangeAvatarDialogBinding
+import sushi.hardcore.aira.databinding.DialogEditTextBinding
 import sushi.hardcore.aira.utils.AvatarPicker
 import sushi.hardcore.aira.utils.StringUtils
 
@@ -46,9 +47,7 @@ class SettingsActivity: AppCompatActivity() {
         override fun onCreatePreferences(savedInstanceState: Bundle?, rootKey: String?) {
             setPreferencesFromResource(R.xml.preferences, rootKey)
             findPreference<Preference>("identityAvatar")?.let { identityAvatarPreference = it }
-            val identityNamePreference = findPreference<EditTextPreference>("identityName")
             val paddingPreference = findPreference<SwitchPreferenceCompat>("psecPadding")
-            identityNamePreference?.isPersistent = false
             paddingPreference?.isPersistent = false
             AIRADatabase.getIdentityAvatar(Constants.getDatabaseFolder(activity))?.let { avatar ->
                 displayAvatar(avatar)
@@ -58,7 +57,6 @@ class SettingsActivity: AppCompatActivity() {
                     override fun onServiceConnected(name: ComponentName?, service: IBinder) {
                         val binder = service as AIRAService.AIRABinder
                         airaService = binder.getService()
-                        identityNamePreference?.text = airaService.identityName
                         paddingPreference?.isChecked = airaService.usePadding
                     }
                     override fun onServiceDisconnected(name: ComponentName?) {}
@@ -84,10 +82,17 @@ class SettingsActivity: AppCompatActivity() {
                 dialogBuilder.setView(dialogBinding.root).show()
                 false
             }
-            identityNamePreference?.setOnPreferenceChangeListener { _, newValue ->
-                if (airaService.changeName(newValue as String)) {
-                    identityNamePreference.text = newValue
-                }
+            findPreference<Preference>("identityName")?.setOnPreferenceClickListener {
+                val dialogBinding = DialogEditTextBinding.inflate(layoutInflater)
+                dialogBinding.editText.setText(airaService.identityName)
+                AlertDialog.Builder(activity, R.style.CustomAlertDialog)
+                    .setTitle(it.title)
+                    .setView(dialogBinding.root)
+                    .setPositiveButton(R.string.ok) { _, _ ->
+                        airaService.changeName(dialogBinding.editText.text.toString())
+                    }
+                    .setNegativeButton(R.string.cancel, null)
+                    .show()
                 false
             }
             findPreference<Preference>("deleteIdentity")?.setOnPreferenceClickListener {

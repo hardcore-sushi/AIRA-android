@@ -9,7 +9,7 @@
             android:summary="The avatar of your identity. Shown to all active sessions."
             android:icon="@drawable/ic_face"/>
 
-        <EditTextPreference
+        <Preference
             android:key="identityName"
             android:title="@string/identity_name"
             android:summary="@string/summary_name"
