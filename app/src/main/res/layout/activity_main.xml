@@ -69,6 +69,7 @@
                     android:imeOptions="actionGo"
                     android:hint="@string/add_peer_ip"
                     android:autofillHints="ip"
+                    style="@style/EditText"
                     app:layout_constraintTop_toTopOf="parent"
                     app:layout_constraintBottom_toBottomOf="parent"
                     app:layout_constraintStart_toStartOf="parent"

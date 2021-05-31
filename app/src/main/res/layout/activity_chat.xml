@@ -34,14 +34,14 @@
             app:layout_constraintTop_toTopOf="parent"
             app:layout_constraintBottom_toBottomOf="parent"
             app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintEnd_toStartOf="@id/image_trust_level"/>
+            app:layout_constraintEnd_toStartOf="@id/bottom_image_trust_level"/>
 
         <ImageView
-            android:id="@+id/image_trust_level"
+            android:id="@+id/bottom_image_trust_level"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:src="@drawable/ic_warning"
             android:contentDescription="@string/trust_level_indicator"
+            android:layout_marginEnd="5dp"
             app:layout_constraintTop_toTopOf="parent"
             app:layout_constraintBottom_toBottomOf="parent"
             app:layout_constraintStart_toEndOf="@id/button_attach"
@@ -53,10 +53,11 @@
             android:layout_height="wrap_content"
             android:hint="@string/message_hint"
             android:autofillHints="message"
-            android:inputType="text"
+            style="@style/EditText"
+            android:inputType="textShortMessage|textAutoCorrect|textCapSentences"
             app:layout_constraintTop_toTopOf="parent"
             app:layout_constraintBottom_toBottomOf="parent"
-            app:layout_constraintStart_toEndOf="@id/image_trust_level"
+            app:layout_constraintStart_toEndOf="@id/bottom_image_trust_level"
             app:layout_constraintEnd_toStartOf="@+id/button_send"/>
 
         <ImageButton

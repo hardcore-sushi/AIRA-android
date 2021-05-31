@@ -25,7 +25,15 @@
             android:layout_height="wrap_content"
             android:textAppearance="@style/TextAppearance.AppCompat.Widget.ActionBar.Title"
             android:layout_marginStart="10dp"
+            android:layout_marginEnd="5dp"
             android:layout_gravity="center_vertical"/>
+
+        <ImageView
+            android:id="@+id/toolbar_image_trust_level"
+            android:layout_width="25dp"
+            android:layout_height="25dp"
+            android:layout_gravity="center_vertical"
+            android:visibility="gone"/>
 
     </androidx.appcompat.widget.LinearLayoutCompat>
 

@@ -94,6 +94,7 @@
     <string name="choose_avatar">Choose avatar</string>
     <string name="message_hint">Send a message…</string>
     <string name="no_name_error">This session has no name !</string>
+    <string name="invalid_ip">Invalid IP address</string>
 
     <!--accessibility strings-->
     <string name="send_file">Send file</string>

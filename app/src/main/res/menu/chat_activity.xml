@@ -3,10 +3,10 @@
     xmlns:app="http://schemas.android.com/apk/res-auto">
 
     <item
-        android:id="@+id/delete_conversation"
+        android:id="@+id/session_info"
         app:showAsAction="ifRoom"
-        android:icon="@drawable/ic_delete_conversation"
-        android:title="@string/delete_conversation" />
+        android:icon="@drawable/ic_info"
+        android:title="@string/details"/>
 
     <item
         android:id="@+id/verify"
@@ -27,10 +27,10 @@
         android:title="@string/remove_contact"/>
 
     <item
-        android:id="@+id/session_info"
+        android:id="@+id/delete_conversation"
         app:showAsAction="ifRoom"
-        android:icon="@drawable/ic_info"
-        android:title="@string/details"/>
+        android:icon="@drawable/ic_delete_conversation"
+        android:title="@string/delete_conversation" />
 
     <item
         android:id="@+id/refresh_profile"

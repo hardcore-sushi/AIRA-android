@@ -9,6 +9,7 @@ import android.view.Menu
 import android.view.MenuItem
 import android.view.View
 import android.view.inputmethod.InputMethodManager
+import android.widget.ImageView
 import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AlertDialog
@@ -93,9 +94,11 @@ class ChatActivity : ServiceBoundActivity() {
                     chatAdapter.clear()
                     val contact = airaService.contacts[sessionId]
                     val avatar = if (contact == null) {
+                        displayIconTrustLevel(false, false)
                         sessionName = airaService.savedNames[sessionId]
                         airaService.savedAvatars[sessionId]
                     } else {
+                        displayIconTrustLevel(true, contact.verified)
                         sessionName = contact.name
                         contact.avatar
                     }
@@ -110,7 +113,6 @@ class ChatActivity : ServiceBoundActivity() {
                         }
                     }
                     if (contact != null) {
-                        displayIconTrustLevel(true, contact.verified)
                         loadMsgs(contact.uuid)
                     }
                     airaService.savedMsgs[sessionId]?.let {
@@ -206,15 +208,28 @@ class ChatActivity : ServiceBoundActivity() {
     }
 
     private fun displayIconTrustLevel(isContact: Boolean, isVerified: Boolean) {
+        val setResource = fun (imageView: ImageView, resource: Int?) {
+            imageView.apply {
+                visibility = if (resource == null) {
+                    View.GONE
+                } else {
+                    setImageResource(resource)
+                    View.VISIBLE
+                }
+            }
+        }
         when {
             isVerified -> {
-                binding.imageTrustLevel.setImageResource(R.drawable.ic_verified)
+                setResource(binding.toolbar.toolbarImageTrustLevel, R.drawable.ic_verified)
+                setResource(binding.bottomImageTrustLevel, R.drawable.ic_verified)
             }
             isContact -> {
-                binding.imageTrustLevel.setImageDrawable(null)
+                setResource(binding.toolbar.toolbarImageTrustLevel, null)
+                setResource(binding.bottomImageTrustLevel, null)
             }
             else -> {
-                binding.imageTrustLevel.setImageResource(R.drawable.ic_warning)
+                setResource(binding.toolbar.toolbarImageTrustLevel, R.drawable.ic_warning)
+                setResource(binding.bottomImageTrustLevel, R.drawable.ic_warning)
             }
         }
     }
