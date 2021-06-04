@@ -91,60 +91,67 @@ class ChatActivity : ServiceBoundActivity() {
                     val binder = service as AIRAService.AIRABinder
                     airaService = binder.getService()
 
-                    chatAdapter.clear()
+                    val session = airaService.sessions[sessionId]
                     val contact = airaService.contacts[sessionId]
-                    val avatar = if (contact == null) {
-                        displayIconTrustLevel(false, false)
-                        sessionName = airaService.savedNames[sessionId]
-                        airaService.savedAvatars[sessionId]
+                    if (session == null && contact == null) { //may happen when resuming activity after session disconnect
+                        onDisconnected()
                     } else {
-                        displayIconTrustLevel(true, contact.verified)
-                        sessionName = contact.name
-                        contact.avatar
-                    }
-                    val ipName = sessionName ?: airaService.sessions[sessionId]!!.ip
-                    binding.toolbar.title.text = ipName
-                    if (avatar == null) {
-                        binding.toolbar.avatar.setTextAvatar(sessionName)
-                    } else {
-                        AIRADatabase.loadAvatar(avatar)?.let { image ->
-                            this@ChatActivity.avatar = image
-                            binding.toolbar.avatar.setImageAvatar(image)
+                        chatAdapter.clear()
+                        val avatar = if (contact == null) {
+                            displayIconTrustLevel(false, false)
+                            sessionName = airaService.savedNames[sessionId]
+                            airaService.savedAvatars[sessionId]
+                        } else {
+                            displayIconTrustLevel(true, contact.verified)
+                            sessionName = contact.name
+                            contact.avatar
                         }
-                    }
-                    if (contact != null) {
-                        loadMsgs(contact.uuid)
-                    }
-                    airaService.savedMsgs[sessionId]?.let {
-                        for (chatItem in it.asReversed()) {
-                            chatAdapter.newLoadedMessage(chatItem)
+                        val ipName = sessionName ?: airaService.sessions[sessionId]!!.ip
+                        binding.toolbar.title.text = ipName
+                        if (avatar == null) {
+                            binding.toolbar.avatar.setTextAvatar(sessionName)
+                        } else {
+                            AIRADatabase.loadAvatar(avatar)?.let { image ->
+                                this@ChatActivity.avatar = image
+                                binding.toolbar.avatar.setImageAvatar(image)
+                            }
                         }
-                    }
-                    airaService.receiveFileTransfers[sessionId]?.let {
-                        if (it.shouldAsk) {
-                            it.ask(this@ChatActivity, ipName)
+                        if (contact != null) {
+                            loadMsgs(contact.uuid)
                         }
-                    }
-                    binding.recyclerChat.smoothScrollToPosition(chatAdapter.itemCount)
-                    val showBottomPanel = {
-                        binding.bottomPanel.visibility = View.VISIBLE
+                        airaService.savedMsgs[sessionId]?.let {
+                            for (chatItem in it.asReversed()) {
+                                chatAdapter.newLoadedMessage(chatItem)
+                            }
+                        }
+                        airaService.receiveFileTransfers[sessionId]?.let {
+                            if (it.shouldAsk) {
+                                it.ask(this@ChatActivity, ipName)
+                            }
+                        }
+                        binding.recyclerChat.smoothScrollToPosition(chatAdapter.itemCount)
+                        if (airaService.isOnline(sessionId)) {
+                            binding.bottomPanel.visibility = View.VISIBLE
+                            binding.recyclerChat.updatePadding(bottom = 0)
+                        } else {
+                            onDisconnected()
+                        }
+                        airaService.setSeen(sessionId, true)
                     }
                     airaService.uiCallbacks = object : AIRAService.UiCallbacks {
                         override fun onConnectFailed(ip: String, errorMsg: String?) {}
                         override fun onNewSession(sessionId: Int, ip: String) {
                             if (this@ChatActivity.sessionId == sessionId) {
                                 runOnUiThread {
-                                    showBottomPanel()
+                                    binding.bottomPanel.visibility = View.VISIBLE
+                                    invalidateOptionsMenu()
                                 }
                             }
                         }
                         override fun onSessionDisconnect(sessionId: Int) {
                             if (this@ChatActivity.sessionId == sessionId) {
                                 runOnUiThread {
-                                    val inputManager = getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager
-                                    inputManager.hideSoftInputFromWindow(binding.editMessage.windowToken, 0)
-                                    binding.bottomPanel.visibility = View.GONE
-                                    invalidateOptionsMenu()
+                                    onDisconnected()
                                 }
                             }
                         }
@@ -197,15 +204,17 @@ class ChatActivity : ServiceBoundActivity() {
                         }
                     }
                     airaService.isAppInBackground = false
-                    if (airaService.isOnline(sessionId)) {
-                        showBottomPanel()
-                        binding.recyclerChat.updatePadding(bottom = 0)
-                    }
-                    airaService.setSeen(sessionId, true)
                 }
                 override fun onServiceDisconnected(name: ComponentName?) {}
             }
         }
+    }
+
+    private fun onDisconnected() {
+        val inputManager = getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager
+        inputManager.hideSoftInputFromWindow(binding.editMessage.windowToken, 0)
+        binding.bottomPanel.visibility = View.GONE
+        invalidateOptionsMenu()
     }
 
     private fun displayIconTrustLevel(isContact: Boolean, isVerified: Boolean) {

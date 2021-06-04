@@ -22,7 +22,7 @@ class ChatAdapter(
 ): RecyclerView.Adapter<RecyclerView.ViewHolder>() {
 
     companion object {
-        const val CONTAINER_MARGIN = 70
+        const val CONTAINER_MARGIN = 150
         const val BUBBLE_HORIZONTAL_PADDING = 40
     }
 
