@@ -1,6 +1,7 @@
 package sushi.hardcore.aira
 
 import android.content.Intent
+import android.os.Binder
 import android.os.Bundle
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
@@ -11,10 +12,18 @@ class LoginActivity : AppCompatActivity() {
     private external fun getIdentityName(databaseFolder: String): String?
 
     companion object {
+        const val NAME_ARG = "identityName"
+        const val BINDER_ARG = "binder"
         private external fun initLogging()
         init {
             System.loadLibrary("aira")
             initLogging()
+        }
+    }
+
+    inner class ActivityLauncher: Binder() {
+        fun launch(identityName: String) {
+            startMainActivity(identityName)
         }
     }
 
@@ -31,8 +40,7 @@ class LoginActivity : AppCompatActivity() {
         val isProtected = AIRADatabase.isIdentityProtected(databaseFolder)
         val name = getIdentityName(databaseFolder)
         if (AIRAService.isServiceRunning) {
-            startActivity(Intent(this, MainActivity::class.java))
-            finish()
+            startMainActivity(null)
         } else if (name != null && !isProtected) {
             if (AIRADatabase.loadIdentity(databaseFolder, null)) {
                 AIRADatabase.clearCache()
@@ -45,9 +53,9 @@ class LoginActivity : AppCompatActivity() {
                 .add(
                     R.id.fragment_container, if (name == null) {
                         AIRADatabase.removeIdentityAvatar(databaseFolder)
-                        CreateIdentityFragment.newInstance(this)
+                        CreateIdentityFragment.newInstance(this, ActivityLauncher())
                     } else {
-                        LoginFragment.newInstance(name)
+                        LoginFragment.newInstance(name, ActivityLauncher())
                     }
                 )
                 .commit()
@@ -55,9 +63,11 @@ class LoginActivity : AppCompatActivity() {
     }
 
     private fun startMainActivity(identityName: String?) {
-        val intent = Intent(this, MainActivity::class.java)
-        intent.putExtra("identityName", identityName)
-        startActivity(intent)
+        val mainActivityIntent = Intent(this, MainActivity::class.java)
+        mainActivityIntent.action = intent.action
+        mainActivityIntent.putExtras(intent)
+        mainActivityIntent.putExtra(NAME_ARG, identityName)
+        startActivity(mainActivityIntent)
         finish()
     }
 }

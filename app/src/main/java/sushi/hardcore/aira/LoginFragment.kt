@@ -1,6 +1,5 @@
 package sushi.hardcore.aira
 
-import android.content.Intent
 import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
@@ -11,10 +10,12 @@ import sushi.hardcore.aira.databinding.FragmentLoginBinding
 
 class LoginFragment : Fragment() {
     companion object {
-        private const val NAME_ARG = "identityName"
-        fun newInstance(name: String): LoginFragment {
+        fun newInstance(name: String, binder: LoginActivity.ActivityLauncher): LoginFragment {
             return LoginFragment().apply {
-                arguments = Bundle().apply { putString(NAME_ARG, name) }
+                arguments = Bundle().apply {
+                    putBinder(LoginActivity.BINDER_ARG, binder)
+                    putString(LoginActivity.NAME_ARG, name)
+                }
             }
         }
     }
@@ -28,24 +29,23 @@ class LoginFragment : Fragment() {
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         arguments?.let { bundle ->
-            bundle.getString(NAME_ARG)?.let { name ->
-                val databaseFolder = Constants.getDatabaseFolder(requireContext())
-                val avatar = AIRADatabase.getIdentityAvatar(databaseFolder)
-                if (avatar == null) {
-                    binding.avatar.setTextAvatar(name)
-                } else {
-                    binding.avatar.setImageAvatar(avatar)
-                }
-                binding.textIdentityName.text = name
-                binding.buttonLogin.setOnClickListener {
-                    if (AIRADatabase.loadIdentity(databaseFolder, binding.editPassword.text.toString().toByteArray())) {
-                        AIRADatabase.clearCache()
-                        val intent = Intent(activity, MainActivity::class.java)
-                        intent.putExtra("identityName", name)
-                        startActivity(intent)
-                        activity?.finish()
+            bundle.getString(LoginActivity.NAME_ARG)?.let { name ->
+                bundle.getBinder(LoginActivity.BINDER_ARG)?.let { binder ->
+                    val databaseFolder = Constants.getDatabaseFolder(requireContext())
+                    val avatar = AIRADatabase.getIdentityAvatar(databaseFolder)
+                    if (avatar == null) {
+                        binding.avatar.setTextAvatar(name)
                     } else {
-                        Toast.makeText(activity, R.string.identity_load_failed, Toast.LENGTH_SHORT).show()
+                        binding.avatar.setImageAvatar(avatar)
+                    }
+                    binding.textIdentityName.text = name
+                    binding.buttonLogin.setOnClickListener {
+                        if (AIRADatabase.loadIdentity(databaseFolder, binding.editPassword.text.toString().toByteArray())) {
+                            AIRADatabase.clearCache()
+                            (binder as LoginActivity.ActivityLauncher).launch(name)
+                        } else {
+                            Toast.makeText(activity, R.string.identity_load_failed, Toast.LENGTH_SHORT).show()
+                        }
                     }
                 }
             }

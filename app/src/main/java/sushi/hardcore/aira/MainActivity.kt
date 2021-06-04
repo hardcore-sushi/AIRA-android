@@ -94,7 +94,7 @@ class MainActivity : ServiceBoundActivity() {
         setContentView(binding.root)
         setSupportActionBar(binding.toolbar.toolbar)
 
-        val identityName = intent.getStringExtra("identityName")
+        val identityName = intent.getStringExtra(LoginActivity.NAME_ARG)
         identityName?.let {
             initToolbar(it)
         }

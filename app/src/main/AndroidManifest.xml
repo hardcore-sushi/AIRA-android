@@ -29,20 +29,19 @@
         </receiver>
 
         <activity android:name=".ChatActivity" android:theme="@style/Theme.AIRA.NoActionBar"/>
-        <activity android:name=".MainActivity" android:theme="@style/Theme.AIRA.NoActionBar">
-            <intent-filter android:label="@string/share_label">
-                <action android:name="android.intent.action.SEND"/>
-                <action android:name="android.intent.action.SEND_MULTIPLE"/>
-                <category android:name="android.intent.category.DEFAULT"/>
-                <data android:mimeType="*/*"/>
-            </intent-filter>
-        </activity>
+        <activity android:name=".MainActivity" android:theme="@style/Theme.AIRA.NoActionBar"/>
         <activity
             android:name=".LoginActivity"
             android:windowSoftInputMode="adjustResize">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN"/>
                 <category android:name="android.intent.category.LAUNCHER"/>
+            </intent-filter>
+            <intent-filter android:label="@string/share_label">
+                <action android:name="android.intent.action.SEND"/>
+                <action android:name="android.intent.action.SEND_MULTIPLE"/>
+                <category android:name="android.intent.category.DEFAULT"/>
+                <data android:mimeType="*/*"/>
             </intent-filter>
         </activity>
         <activity android:name=".SettingsActivity"/>

@@ -1,7 +1,7 @@
 package sushi.hardcore.aira
 
 import android.content.Context
-import android.content.Intent
+import android.os.Binder
 import android.os.Bundle
 import androidx.fragment.app.Fragment
 import android.view.LayoutInflater
@@ -16,8 +16,12 @@ class CreateIdentityFragment(private val activity: AppCompatActivity) : Fragment
     private external fun createNewIdentity(databaseFolder: String, name: String, password: ByteArray?): Boolean
 
     companion object {
-        fun newInstance(activity: AppCompatActivity): CreateIdentityFragment {
-            return CreateIdentityFragment(activity)
+        fun newInstance(activity: AppCompatActivity, binder: Binder): CreateIdentityFragment {
+            return CreateIdentityFragment(activity).apply {
+                arguments = Bundle().apply {
+                    putBinder(LoginActivity.BINDER_ARG, binder)
+                }
+            }
         }
     }
 
@@ -71,17 +75,17 @@ class CreateIdentityFragment(private val activity: AppCompatActivity) : Fragment
     }
 
     private fun createIdentity(identityName: String, password: ByteArray?) {
-        val databaseFolder = Constants.getDatabaseFolder(requireContext())
-        if (createNewIdentity(
-                databaseFolder,
-                identityName,
-                password
-        )) {
-            val intent = Intent(activity, MainActivity::class.java)
-            intent.putExtra("identityName", identityName)
-            startActivity(intent)
-            activity.finish()
-        } else {
+        var success = false
+        arguments?.let { bundle ->
+            bundle.getBinder(LoginActivity.BINDER_ARG)?.let { binder ->
+                val databaseFolder = Constants.getDatabaseFolder(requireContext())
+                if (createNewIdentity(databaseFolder, identityName, password)) {
+                    (binder as LoginActivity.ActivityLauncher).launch(identityName)
+                    success = true
+                }
+            }
+        }
+        if (!success) {
             Toast.makeText(activity, R.string.identity_create_failed, Toast.LENGTH_SHORT).show()
         }
     }
