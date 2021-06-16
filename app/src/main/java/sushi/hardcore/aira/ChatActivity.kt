@@ -23,6 +23,7 @@ import sushi.hardcore.aira.databinding.DialogFingerprintsBinding
 import sushi.hardcore.aira.databinding.DialogInfoBinding
 import sushi.hardcore.aira.utils.FileUtils
 import sushi.hardcore.aira.utils.StringUtils
+import sushi.hardcore.aira.utils.TimeUtils
 
 class ChatActivity : ServiceBoundActivity() {
     private external fun generateFingerprint(publicKey: ByteArray): String
@@ -77,7 +78,7 @@ class ChatActivity : ServiceBoundActivity() {
                 val msg = binding.editMessage.text.toString()
                 airaService.sendTo(sessionId, Protocol.newMessage(msg))
                 binding.editMessage.text.clear()
-                chatAdapter.newMessage(ChatItem(true, Protocol.newMessage(msg)))
+                chatAdapter.newMessage(ChatItem(true, TimeUtils.getTimestamp(), Protocol.newMessage(msg)))
                 if (airaService.contacts.contains(sessionId)) {
                     lastLoadedMessageOffset += 1
                 }
@@ -178,10 +179,10 @@ class ChatActivity : ServiceBoundActivity() {
                                 }
                             }
                         }
-                        override fun onNewMessage(sessionId: Int, data: ByteArray): Boolean {
+                        override fun onNewMessage(sessionId: Int, timestamp: Long, data: ByteArray): Boolean {
                             return if (this@ChatActivity.sessionId == sessionId) {
                                 runOnUiThread {
-                                    chatAdapter.newMessage(ChatItem(false, data))
+                                    chatAdapter.newMessage(ChatItem(false, timestamp, data))
                                     binding.recyclerChat.smoothScrollToPosition(chatAdapter.itemCount)
                                 }
                                 if (airaService.contacts.contains(sessionId)) {

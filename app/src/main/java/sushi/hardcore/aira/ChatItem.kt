@@ -2,7 +2,7 @@ package sushi.hardcore.aira
 
 import sushi.hardcore.aira.background_service.Protocol
 
-class ChatItem(val outgoing: Boolean, val data: ByteArray) {
+class ChatItem(val outgoing: Boolean, val timestamp: Long, val data: ByteArray) {
     companion object {
         const val OUTGOING_MESSAGE = 0
         const val INCOMING_MESSAGE = 1

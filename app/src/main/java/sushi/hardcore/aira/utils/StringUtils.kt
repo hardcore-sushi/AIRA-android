@@ -25,4 +25,12 @@ object StringUtils {
     fun sanitizeName(name: String): String {
         return name.replace('\n', ' ')
     }
+
+    fun toTwoDigits(number: Int): String {
+        return if (number < 10) {
+            "0$number"
+        } else {
+            number.toString()
+        }
+    }
 }

@@ -1,5 +1,6 @@
 package sushi.hardcore.aira.adapters
 
+import android.annotation.SuppressLint
 import android.content.Context
 import android.graphics.PorterDuff
 import android.graphics.PorterDuffColorFilter
@@ -15,6 +16,8 @@ import androidx.core.view.updatePadding
 import androidx.recyclerview.widget.RecyclerView
 import sushi.hardcore.aira.ChatItem
 import sushi.hardcore.aira.R
+import sushi.hardcore.aira.utils.StringUtils
+import java.util.*
 
 class ChatAdapter(
     private val context: Context,
@@ -52,8 +55,9 @@ class ChatAdapter(
                 itemView.updatePadding(left = BUBBLE_HORIZONTAL_PADDING)
             }
         }
-        protected fun configureBubble(context: Context, view: View, outgoing: Boolean) {
-            view.layoutParams = LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT).apply {
+        protected fun configureBubble(context: Context, outgoing: Boolean) {
+            val bubble = itemView.findViewById<LinearLayout>(R.id.bubble_content)
+            bubble.layoutParams = LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT).apply {
                 gravity = if (outgoing) {
                     marginStart = CONTAINER_MARGIN
                     Gravity.END
@@ -63,11 +67,20 @@ class ChatAdapter(
                 }
             }
             if (!outgoing) {
-                view.background.colorFilter = PorterDuffColorFilter(
+                bubble.background.colorFilter = PorterDuffColorFilter(
                     ContextCompat.getColor(context, R.color.incomingBubbleBackground),
                     PorterDuff.Mode.SRC
                 )
             }
+        }
+        protected fun setTimestamp(chatItem: ChatItem): TextView {
+            val calendar = Calendar.getInstance().apply {
+                time = Date(chatItem.timestamp * 1000)
+            }
+            val textView = itemView.findViewById<TextView>(R.id.timestamp)
+            @SuppressLint("SetTextI18n")
+            textView.text = StringUtils.toTwoDigits(calendar.get(Calendar.HOUR_OF_DAY))+":"+StringUtils.toTwoDigits(calendar.get(Calendar.MINUTE))
+            return textView
         }
     }
 
@@ -82,43 +95,58 @@ class ChatAdapter(
 
     internal class OutgoingMessageViewHolder(private val context: Context, itemView: View): MessageViewHolder(itemView) {
         fun bind(chatItem: ChatItem) {
-            configureBubble(context, bindMessage(chatItem).apply {
-                 setLinkTextColor(ContextCompat.getColor(context, R.color.outgoingTextLink))
-            }, true)
+            setTimestamp(chatItem).apply {
+                setTextColor(ContextCompat.getColor(context, R.color.outgoingTimestamp))
+            }
+            configureBubble(context, true)
+            bindMessage(chatItem).apply {
+                setLinkTextColor(ContextCompat.getColor(context, R.color.outgoingTextLink))
+            }
             setPadding(true)
         }
     }
 
     internal class IncomingMessageViewHolder(private val context: Context, itemView: View): MessageViewHolder(itemView) {
         fun bind(chatItem: ChatItem) {
-            configureBubble(context, bindMessage(chatItem).apply {
+            setTimestamp(chatItem).apply {
+                setTextColor(ContextCompat.getColor(context, R.color.incomingTimestamp))
+            }
+            configureBubble(context, false)
+            bindMessage(chatItem).apply {
                 setLinkTextColor(ContextCompat.getColor(context, R.color.incomingTextLink))
-            }, false)
+            }
             setPadding(false)
         }
     }
 
     internal open class FileViewHolder(itemView: View, private val onSavingFile: (filename: String, rawUuid: ByteArray) -> Unit): BubbleViewHolder(itemView) {
-        protected fun bindFile(chatItem: ChatItem): LinearLayout {
+        protected fun bindFile(chatItem: ChatItem) {
             val filename = chatItem.data.sliceArray(17 until chatItem.data.size).decodeToString()
             itemView.findViewById<TextView>(R.id.text_filename).text = filename
             itemView.findViewById<ImageButton>(R.id.button_save).setOnClickListener {
                 onSavingFile(filename, chatItem.data.sliceArray(1 until 17))
             }
-            return itemView.findViewById(R.id.bubble_content)
         }
     }
 
     internal class OutgoingFileViewHolder(private val context: Context, itemView: View, onSavingFile: (filename: String, rawUuid: ByteArray) -> Unit): FileViewHolder(itemView, onSavingFile) {
         fun bind(chatItem: ChatItem) {
-            configureBubble(context, bindFile(chatItem), true)
+            setTimestamp(chatItem).apply {
+                setTextColor(ContextCompat.getColor(context, R.color.outgoingTimestamp))
+            }
+            bindFile(chatItem)
+            configureBubble(context, true)
             setPadding(true)
         }
     }
 
     internal class IncomingFileViewHolder(private val context: Context, itemView: View, onSavingFile: (filename: String, rawUuid: ByteArray) -> Unit): FileViewHolder(itemView, onSavingFile) {
         fun bind(chatItem: ChatItem) {
-            configureBubble(context, bindFile(chatItem), false)
+            setTimestamp(chatItem).apply {
+                setTextColor(ContextCompat.getColor(context, R.color.incomingTimestamp))
+            }
+            bindFile(chatItem)
+            configureBubble(context, false)
             setPadding(false)
         }
     }

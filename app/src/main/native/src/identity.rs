@@ -43,12 +43,11 @@ fn get_database_path(database_folder: &str) -> String {
     Path::new(database_folder).join(DB_NAME).to_str().unwrap().to_owned()
 }
 
-struct EncryptedIdentity {
-    name: String,
-    encrypted_keypair: Vec<u8>,
-    salt: Vec<u8>,
-    encrypted_master_key: Vec<u8>,
-    encrypted_use_padding: Vec<u8>,
+#[derive(Debug, Clone)]
+pub struct Message {
+    pub outgoing: bool,
+    pub timestamp: u64,
+    pub data: Vec<u8>,
 }
 
 pub struct Contact {
@@ -58,6 +57,14 @@ pub struct Contact {
     pub avatar: Option<Uuid>,
     pub verified: bool,
     pub seen: bool,
+}
+
+struct EncryptedIdentity {
+    name: String,
+    encrypted_keypair: Vec<u8>,
+    salt: Vec<u8>,
+    encrypted_master_key: Vec<u8>,
+    encrypted_use_padding: Vec<u8>,
 }
 
 pub struct Identity {
@@ -251,16 +258,17 @@ impl Identity {
         Ok(file_uuid)
     }
 
-    pub fn store_msg(&self, contact_uuid: &Uuid, outgoing: bool, data: &[u8]) -> Result<usize, rusqlite::Error> {
+    pub fn store_msg(&self, contact_uuid: &Uuid, message: Message) -> Result<usize, rusqlite::Error> {
         let db = Connection::open(self.get_database_path())?;
-        db.execute(&format!("CREATE TABLE IF NOT EXISTS \"{}\" (outgoing BLOB, data BLOB)", contact_uuid), [])?;
-        let outgoing_byte: u8 = bool_to_byte(outgoing);
+        db.execute(&format!("CREATE TABLE IF NOT EXISTS \"{}\" (outgoing BLOB, timestamp BLOB, data BLOB)", contact_uuid), [])?;
+        let outgoing_byte: u8 = bool_to_byte(message.outgoing);
         let encrypted_outgoing = crypto::encrypt_data(&[outgoing_byte], &self.master_key).unwrap();
-        let encrypted_data = crypto::encrypt_data(data, &self.master_key).unwrap();
-        db.execute(&format!("INSERT INTO \"{}\" (outgoing, data) VALUES (?1, ?2)", contact_uuid), params![encrypted_outgoing, encrypted_data])
+        let encrypted_timestamp = crypto::encrypt_data(&message.timestamp.to_be_bytes(), &self.master_key).unwrap();
+        let encrypted_data = crypto::encrypt_data(&message.data, &self.master_key).unwrap();
+        db.execute(&format!("INSERT INTO \"{}\" (outgoing, timestamp, data) VALUES (?1, ?2, ?3)", contact_uuid), params![encrypted_outgoing, encrypted_timestamp, encrypted_data])
     }
 
-    pub fn load_msgs(&self, contact_uuid: &Uuid, offset: usize, mut count: usize) -> Option<Vec<(bool, Vec<u8>)>> {
+    pub fn load_msgs(&self, contact_uuid: &Uuid, offset: usize, mut count: usize) -> Option<Vec<Message>> {
         match Connection::open(self.get_database_path()) {
             Ok(db) => {
                 if let Ok(mut stmt) = db.prepare(&format!("SELECT count(*) FROM \"{}\"", contact_uuid)) {
@@ -271,7 +279,7 @@ impl Identity {
                             if offset+count >= total {
                                 count = total-offset;
                             }
-                            let mut stmt = db.prepare(&format!("SELECT outgoing, data FROM \"{}\" LIMIT {} OFFSET {}", contact_uuid, count, total-offset-count)).unwrap();
+                            let mut stmt = db.prepare(&format!("SELECT outgoing, timestamp, data FROM \"{}\" LIMIT {} OFFSET {}", contact_uuid, count, total-offset-count)).unwrap();
                             let mut rows = stmt.query([]).unwrap();
                             let mut msgs = Vec::new();
                             while let Ok(Some(row)) = rows.next() {
@@ -280,9 +288,19 @@ impl Identity {
                                     Ok(outgoing) => {
                                         match byte_to_bool(outgoing[0]) {
                                             Ok(outgoing) => {
-                                                let encrypted_data: Vec<u8> = row.get(1).unwrap();
-                                                match crypto::decrypt_data(encrypted_data.as_slice(), &self.master_key) {
-                                                    Ok(data) => msgs.push((outgoing, data)),
+                                                let encrypted_timestamp: Vec<u8> = row.get(1).unwrap();
+                                                match crypto::decrypt_data(&encrypted_timestamp, &self.master_key) {
+                                                    Ok(timestamp) => {
+                                                        let encrypted_data: Vec<u8> = row.get(2).unwrap();
+                                                        match crypto::decrypt_data(encrypted_data.as_slice(), &self.master_key) {
+                                                            Ok(data) => msgs.push(Message {
+                                                                outgoing,
+                                                                timestamp: u64::from_be_bytes(timestamp.try_into().unwrap()),
+                                                                data,
+                                                            }),
+                                                            Err(e) => print_error!(e)
+                                                        }
+                                                    }
                                                     Err(e) => print_error!(e)
                                                 }
                                             }

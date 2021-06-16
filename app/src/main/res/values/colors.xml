@@ -12,4 +12,6 @@
     <color name="itemSelected">#66666666</color>
     <color name="transparent">#00000000</color>
     <color name="sessionArrow">#777777</color>
+    <color name="outgoingTimestamp">#777777</color>
+    <color name="incomingTimestamp">#d7d7d7</color>
 </resources>

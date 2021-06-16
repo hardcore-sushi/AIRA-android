@@ -73,7 +73,7 @@ class MainActivity : ServiceBoundActivity() {
                 onlineSessionAdapter.setAvatar(sessionId, avatar)
             }
         }
-        override fun onNewMessage(sessionId: Int, data: ByteArray): Boolean {
+        override fun onNewMessage(sessionId: Int, timestamp: Long, data: ByteArray): Boolean {
             runOnUiThread {
                 onlineSessionAdapter.setSeen(sessionId, false)
             }

@@ -12,7 +12,7 @@ object AIRADatabase {
     external fun setContactSeen(contactUuid: String, seen: Boolean): Boolean
     external fun changeContactName(contactUuid: String, newName: String): Boolean
     external fun setContactAvatar(contactUuid: String, avatarUuid: String?): Boolean
-    external fun storeMsg(contactUuid: String, outgoing: Boolean, data: ByteArray): Boolean
+    external fun storeMsg(contactUuid: String, outgoing: Boolean, timestamp: Long, data: ByteArray): Boolean
     external fun storeFile(contactUuid: String?, data: ByteArray): ByteArray?
     external fun loadMsgs(uuid: String, offset: Int, count: Int): ArrayList<ChatItem>?
     external fun loadFile(rawUuid: ByteArray): ByteArray?

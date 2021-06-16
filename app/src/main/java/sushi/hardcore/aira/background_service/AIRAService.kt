@@ -17,6 +17,7 @@ import androidx.core.app.RemoteInput
 import sushi.hardcore.aira.*
 import sushi.hardcore.aira.utils.FileUtils
 import sushi.hardcore.aira.utils.StringUtils
+import sushi.hardcore.aira.utils.TimeUtils
 import java.io.IOException
 import java.net.*
 import java.nio.channels.*
@@ -108,7 +109,7 @@ class AIRAService : Service() {
         fun onSessionDisconnect(sessionId: Int)
         fun onNameTold(sessionId: Int, name: String)
         fun onAvatarChanged(sessionId: Int, avatar: ByteArray?)
-        fun onNewMessage(sessionId: Int, data: ByteArray): Boolean
+        fun onNewMessage(sessionId: Int, timestamp: Long, data: ByteArray): Boolean
         fun onAskLargeFiles(sessionId: Int, filesReceiver: FilesReceiver): Boolean
     }
 
@@ -164,7 +165,7 @@ class AIRAService : Service() {
         sendFile.inputStream.close()
         sendTo(sessionId, Protocol.newFile(sendFile.fileName, buffer))
         AIRADatabase.storeFile(contacts[sessionId]?.uuid, buffer)?.let { rawFileUuid ->
-            saveMsg(sessionId, byteArrayOf(Protocol.FILE) + rawFileUuid + sendFile.fileName.toByteArray())
+            saveMsg(sessionId, TimeUtils.getTimestamp(), byteArrayOf(Protocol.FILE) + rawFileUuid + sendFile.fileName.toByteArray())
         }
     }
 
@@ -203,7 +204,7 @@ class AIRAService : Service() {
                 contacts[sessionId] = contact
                 savedMsgs.remove(sessionId)?.let { msgs ->
                     for (msg in msgs) {
-                        AIRADatabase.storeMsg(contact.uuid, msg.outgoing, msg.data)
+                        AIRADatabase.storeMsg(contact.uuid, msg.outgoing, msg.timestamp, msg.data)
                     }
                 }
                 savedNames.remove(sessionId)
@@ -419,20 +420,20 @@ class AIRAService : Service() {
         )
     }
 
-    private fun saveMsg(sessionId: Int, msg: ByteArray) {
+    private fun saveMsg(sessionId: Int, timestamp: Long, msg: ByteArray) {
         var msgSaved = false
         contacts[sessionId]?.uuid?.let { uuid ->
-            msgSaved = AIRADatabase.storeMsg(uuid, true, msg)
+            msgSaved = AIRADatabase.storeMsg(uuid, true, timestamp, msg)
         }
         if (!msgSaved) {
-            savedMsgs[sessionId]?.add(ChatItem(true, msg))
+            savedMsgs[sessionId]?.add(ChatItem(true, timestamp, msg))
         }
     }
 
     private fun sendAndSave(sessionId: Int, msg: ByteArray) {
         sessions[sessionId]?.encryptAndSend(msg, usePadding)
         if (msg[0] == Protocol.MESSAGE) {
-            saveMsg(sessionId, msg)
+            saveMsg(sessionId, TimeUtils.getTimestamp(), msg)
         }
     }
 
@@ -810,17 +811,18 @@ class AIRAService : Service() {
                                                             null
                                                         }
                                                     }?.let { handledMsg ->
+                                                        val timestamp = TimeUtils.getTimestamp()
                                                         var seen = false
                                                         uiCallbacks?.let { uiCallbacks ->
-                                                            seen = uiCallbacks.onNewMessage(sessionId, handledMsg)
+                                                            seen = uiCallbacks.onNewMessage(sessionId, timestamp, handledMsg)
                                                         }
                                                         setSeen(sessionId, seen)
                                                         var msgSaved = false
                                                         contacts[sessionId]?.let { contact ->
-                                                            msgSaved = AIRADatabase.storeMsg(contact.uuid, false, handledMsg)
+                                                            msgSaved = AIRADatabase.storeMsg(contact.uuid, false, timestamp, handledMsg)
                                                         }
                                                         if (!msgSaved){
-                                                            savedMsgs[sessionId]?.add(ChatItem(false, handledMsg))
+                                                            savedMsgs[sessionId]?.add(ChatItem(false, timestamp, handledMsg))
                                                         }
                                                         if (isAppInBackground) {
                                                             sendNotification(sessionId, handledMsg)

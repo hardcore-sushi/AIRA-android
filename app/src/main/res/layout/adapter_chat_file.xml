@@ -8,26 +8,38 @@
         android:id="@+id/bubble_content"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:orientation="horizontal"
-        android:gravity="center"
-        style="@style/Bubble"
-        android:paddingStart="6dp"
-        android:paddingVertical="5dp">
+        android:orientation="vertical"
+        style="@style/Bubble">
 
-        <ImageButton
-            android:id="@+id/button_save"
-            android:layout_width="@dimen/image_button_size"
-            android:layout_height="@dimen/image_button_size"
-            android:src="@drawable/ic_save"
-            style="@style/ImageButton"
-            android:contentDescription="@string/download" />
-
-        <TextView
-            android:id="@+id/text_filename"
+        <LinearLayout
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:textIsSelectable="true"
-            android:textColor="@color/messageTextColor"/>
+            android:gravity="center_vertical">
+
+            <ImageButton
+                android:id="@+id/button_save"
+                android:layout_width="@dimen/image_button_size"
+                android:layout_height="@dimen/image_button_size"
+                android:src="@drawable/ic_save"
+                android:scaleType="fitXY"
+                android:background="@color/transparent"
+                android:layout_marginEnd="8dp"
+                android:contentDescription="@string/download" />
+
+            <TextView
+                android:id="@+id/text_filename"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:textIsSelectable="true"
+                android:textColor="@color/messageTextColor"/>
+
+        </LinearLayout>
+
+        <TextView
+            android:id="@+id/timestamp"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:textSize="12sp"/>
 
     </LinearLayout>
 

@@ -7,7 +7,7 @@ use std::{convert::TryInto, fmt::Display, str::FromStr, sync::{Mutex}};
 use lazy_static::lazy_static;
 use uuid::Uuid;
 use android_log;
-use identity::{Identity, Contact};
+use identity::{Identity, Contact, Message};
 use crate::crypto::{HandshakeKeys, ApplicationKeys};
 
 lazy_static! {
@@ -17,7 +17,7 @@ lazy_static! {
 #[cfg(target_os="android")]
 use jni::JNIEnv;
 use jni::objects::{JClass, JObject, JString, JList, JValue};
-use jni::sys::{jboolean, jint, jbyteArray, jobject};
+use jni::sys::{jboolean, jint, jlong, jbyteArray, jobject};
 
 fn jstring_to_string(env: JNIEnv, input: JString) -> String {
     String::from(env.get_string(input).unwrap())
@@ -287,8 +287,13 @@ pub fn Java_sushi_hardcore_aira_AIRADatabase_setContactSeen(env: JNIEnv, _: JCla
 
 #[allow(non_snake_case)]
 #[no_mangle]
-pub fn Java_sushi_hardcore_aira_AIRADatabase_storeMsg(env: JNIEnv, _: JClass, contactUuid: JString, outgoing: jboolean, data: jbyteArray) -> jboolean {
-    result_to_jboolean(loaded_identity.lock().unwrap().as_ref().unwrap().store_msg(&jstring_to_uuid(env, contactUuid).unwrap(), jboolean_to_bool(outgoing), &env.convert_byte_array(data).unwrap()))
+pub fn Java_sushi_hardcore_aira_AIRADatabase_storeMsg(env: JNIEnv, _: JClass, contactUuid: JString, outgoing: jboolean, timestamp: jlong, data: jbyteArray) -> jboolean {
+    let message = Message {
+        outgoing: jboolean_to_bool(outgoing),
+        timestamp: timestamp as u64,
+        data: env.convert_byte_array(data).unwrap(),
+    };
+    result_to_jboolean(loaded_identity.lock().unwrap().as_ref().unwrap().store_msg(&jstring_to_uuid(env, contactUuid).unwrap(), message))
 }
 
 #[allow(non_snake_case)]
@@ -301,7 +306,11 @@ pub fn Java_sushi_hardcore_aira_AIRADatabase_loadMsgs(env: JNIEnv, _: JClass, uu
             let array_list = JList::from_env(&env, array_list).unwrap();
             let chat_item_class = env.find_class("sushi/hardcore/aira/ChatItem").unwrap();
             for msg in msgs {
-                let chat_item_object = env.new_object(chat_item_class, "(Z[B)V", &[JValue::Bool(bool_to_jboolean(msg.0)), slice_to_jvalue(env, &msg.1)]).unwrap();
+                let chat_item_object = env.new_object(chat_item_class, "(ZJ[B)V", &[
+                    JValue::Bool(bool_to_jboolean(msg.outgoing)),
+                    JValue::Long(msg.timestamp as jlong),
+                    slice_to_jvalue(env, &msg.data),
+                ]).unwrap();
                 array_list.add(chat_item_object).unwrap();
             }
             *array_list
