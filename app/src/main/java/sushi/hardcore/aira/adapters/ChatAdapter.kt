@@ -92,9 +92,12 @@ class ChatAdapter(
     }
 
     internal open class MessageViewHolder(itemView: View): BubbleViewHolder(itemView) {
-        protected fun bindMessage(chatItem: ChatItem): TextView {
+        protected fun bindMessage(chatItem: ChatItem, outgoing: Boolean): TextView {
             itemView.findViewById<TextView>(R.id.text_message).apply {
                 text = chatItem.data.sliceArray(1 until chatItem.data.size).decodeToString()
+                if (!outgoing) {
+                    highlightColor = ContextCompat.getColor(context, R.color.incomingHighlight)
+                }
                 return this
             }
         }
@@ -106,7 +109,7 @@ class ChatAdapter(
                 setTextColor(ContextCompat.getColor(context, R.color.outgoingTimestamp))
             }
             configureBubble(context, true)
-            bindMessage(chatItem).apply {
+            bindMessage(chatItem, true).apply {
                 setLinkTextColor(ContextCompat.getColor(context, R.color.outgoingTextLink))
             }
             configureContainer(true, previousOutgoing)
@@ -119,7 +122,7 @@ class ChatAdapter(
                 setTextColor(ContextCompat.getColor(context, R.color.incomingTimestamp))
             }
             configureBubble(context, false)
-            bindMessage(chatItem).apply {
+            bindMessage(chatItem, false).apply {
                 setLinkTextColor(ContextCompat.getColor(context, R.color.incomingTextLink))
             }
             configureContainer(false, previousOutgoing)
@@ -127,9 +130,14 @@ class ChatAdapter(
     }
 
     internal open class FileViewHolder(itemView: View, private val onSavingFile: (filename: String, rawUuid: ByteArray) -> Unit): BubbleViewHolder(itemView) {
-        protected fun bindFile(chatItem: ChatItem) {
+        protected fun bindFile(chatItem: ChatItem, outgoing: Boolean) {
             val filename = chatItem.data.sliceArray(17 until chatItem.data.size).decodeToString()
-            itemView.findViewById<TextView>(R.id.text_filename).text = filename
+            itemView.findViewById<TextView>(R.id.text_filename).apply {
+                text = filename
+                if (!outgoing) {
+                    highlightColor = ContextCompat.getColor(context, R.color.incomingHighlight)
+                }
+            }
             itemView.findViewById<ImageButton>(R.id.button_save).setOnClickListener {
                 onSavingFile(filename, chatItem.data.sliceArray(1 until 17))
             }
@@ -141,7 +149,7 @@ class ChatAdapter(
             setTimestamp(chatItem).apply {
                 setTextColor(ContextCompat.getColor(context, R.color.outgoingTimestamp))
             }
-            bindFile(chatItem)
+            bindFile(chatItem, true)
             configureBubble(context, true)
             configureContainer(true, previousOutgoing)
         }
@@ -152,7 +160,7 @@ class ChatAdapter(
             setTimestamp(chatItem).apply {
                 setTextColor(ContextCompat.getColor(context, R.color.incomingTimestamp))
             }
-            bindFile(chatItem)
+            bindFile(chatItem, false)
             configureBubble(context, false)
             configureContainer(false, previousOutgoing)
         }
