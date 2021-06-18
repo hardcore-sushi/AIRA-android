@@ -38,8 +38,8 @@ class Session(private val socket: SocketChannel, val outgoing: Boolean): Selecta
         private const val handshakeBufferLen = (2*(RANDOM_LEN+PUBLIC_KEY_LEN))+SIGNATURE_LEN+AES_TAG_LEN
         private const val CIPHER_TYPE = "AES/GCM/NoPadding"
         private const val MESSAGE_LEN_LEN = 4
-        private const val PADDED_MAX_SIZE = 32768000
-        private const val MAX_RECV_SIZE = MESSAGE_LEN_LEN + PADDED_MAX_SIZE + AES_TAG_LEN
+        private const val PADDED_MAX_SIZE = 16384000
+        private const val MAX_RECV_SIZE = PADDED_MAX_SIZE + AES_TAG_LEN
     }
 
     private val prng = SecureRandom()
