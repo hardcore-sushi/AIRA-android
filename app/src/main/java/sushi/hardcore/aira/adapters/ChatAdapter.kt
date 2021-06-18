@@ -12,6 +12,7 @@ import android.widget.ImageButton
 import android.widget.LinearLayout
 import android.widget.TextView
 import androidx.core.content.ContextCompat
+import androidx.core.view.updateMargins
 import androidx.core.view.updatePadding
 import androidx.recyclerview.widget.RecyclerView
 import sushi.hardcore.aira.ChatItem
@@ -25,8 +26,9 @@ class ChatAdapter(
 ): RecyclerView.Adapter<RecyclerView.ViewHolder>() {
 
     companion object {
-        const val CONTAINER_MARGIN = 150
-        const val BUBBLE_HORIZONTAL_PADDING = 40
+        const val BUBBLE_MARGIN = 150
+        const val CONTAINER_PADDING = 40
+        const val BUBBLE_VERTICAL_MARGIN = 40
     }
 
     private val inflater: LayoutInflater = LayoutInflater.from(context)
@@ -48,21 +50,26 @@ class ChatAdapter(
     }
 
     internal open class BubbleViewHolder(itemView: View): RecyclerView.ViewHolder(itemView) {
-        protected fun setPadding(outgoing: Boolean) {
+        protected fun configureContainer(outgoing: Boolean, previousOutgoing: Boolean?) {
+            val layoutParams = LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT)
+            if (previousOutgoing != null && previousOutgoing != outgoing) {
+                layoutParams.updateMargins(top = BUBBLE_VERTICAL_MARGIN)
+            }
+            itemView.layoutParams = layoutParams //set layoutParams anyway to reset margins if the view was recycled
             if (outgoing) {
-                itemView.updatePadding(right = BUBBLE_HORIZONTAL_PADDING)
+                itemView.updatePadding(right = CONTAINER_PADDING)
             } else {
-                itemView.updatePadding(left = BUBBLE_HORIZONTAL_PADDING)
+                itemView.updatePadding(left = CONTAINER_PADDING)
             }
         }
         protected fun configureBubble(context: Context, outgoing: Boolean) {
             val bubble = itemView.findViewById<LinearLayout>(R.id.bubble_content)
             bubble.layoutParams = LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT).apply {
                 gravity = if (outgoing) {
-                    marginStart = CONTAINER_MARGIN
+                    marginStart = BUBBLE_MARGIN
                     Gravity.END
                 } else {
-                    marginEnd = CONTAINER_MARGIN
+                    marginEnd = BUBBLE_MARGIN
                     Gravity.START
                 }
             }
@@ -94,7 +101,7 @@ class ChatAdapter(
     }
 
     internal class OutgoingMessageViewHolder(private val context: Context, itemView: View): MessageViewHolder(itemView) {
-        fun bind(chatItem: ChatItem) {
+        fun bind(chatItem: ChatItem, previousOutgoing: Boolean?) {
             setTimestamp(chatItem).apply {
                 setTextColor(ContextCompat.getColor(context, R.color.outgoingTimestamp))
             }
@@ -102,12 +109,12 @@ class ChatAdapter(
             bindMessage(chatItem).apply {
                 setLinkTextColor(ContextCompat.getColor(context, R.color.outgoingTextLink))
             }
-            setPadding(true)
+            configureContainer(true, previousOutgoing)
         }
     }
 
     internal class IncomingMessageViewHolder(private val context: Context, itemView: View): MessageViewHolder(itemView) {
-        fun bind(chatItem: ChatItem) {
+        fun bind(chatItem: ChatItem, previousOutgoing: Boolean?) {
             setTimestamp(chatItem).apply {
                 setTextColor(ContextCompat.getColor(context, R.color.incomingTimestamp))
             }
@@ -115,7 +122,7 @@ class ChatAdapter(
             bindMessage(chatItem).apply {
                 setLinkTextColor(ContextCompat.getColor(context, R.color.incomingTextLink))
             }
-            setPadding(false)
+            configureContainer(false, previousOutgoing)
         }
     }
 
@@ -130,24 +137,24 @@ class ChatAdapter(
     }
 
     internal class OutgoingFileViewHolder(private val context: Context, itemView: View, onSavingFile: (filename: String, rawUuid: ByteArray) -> Unit): FileViewHolder(itemView, onSavingFile) {
-        fun bind(chatItem: ChatItem) {
+        fun bind(chatItem: ChatItem, previousOutgoing: Boolean?) {
             setTimestamp(chatItem).apply {
                 setTextColor(ContextCompat.getColor(context, R.color.outgoingTimestamp))
             }
             bindFile(chatItem)
             configureBubble(context, true)
-            setPadding(true)
+            configureContainer(true, previousOutgoing)
         }
     }
 
     internal class IncomingFileViewHolder(private val context: Context, itemView: View, onSavingFile: (filename: String, rawUuid: ByteArray) -> Unit): FileViewHolder(itemView, onSavingFile) {
-        fun bind(chatItem: ChatItem) {
+        fun bind(chatItem: ChatItem, previousOutgoing: Boolean?) {
             setTimestamp(chatItem).apply {
                 setTextColor(ContextCompat.getColor(context, R.color.incomingTimestamp))
             }
             bindFile(chatItem)
             configureBubble(context, false)
-            setPadding(false)
+            configureContainer(false, previousOutgoing)
         }
     }
 
@@ -171,11 +178,16 @@ class ChatAdapter(
 
     override fun onBindViewHolder(holder: RecyclerView.ViewHolder, position: Int) {
         val chatItem = chatItems[position]
+        val previousOutgoing = if (position == 0) {
+            null
+        } else {
+            chatItems[position-1].outgoing
+        }
         when (chatItem.itemType) {
-            ChatItem.OUTGOING_MESSAGE -> (holder as OutgoingMessageViewHolder).bind(chatItem)
-            ChatItem.INCOMING_MESSAGE -> (holder as IncomingMessageViewHolder).bind(chatItem)
-            ChatItem.OUTGOING_FILE -> (holder as OutgoingFileViewHolder).bind(chatItem)
-            ChatItem.INCOMING_FILE -> (holder as IncomingFileViewHolder).bind(chatItem)
+            ChatItem.OUTGOING_MESSAGE -> (holder as OutgoingMessageViewHolder).bind(chatItem, previousOutgoing)
+            ChatItem.INCOMING_MESSAGE -> (holder as IncomingMessageViewHolder).bind(chatItem, previousOutgoing)
+            ChatItem.OUTGOING_FILE -> (holder as OutgoingFileViewHolder).bind(chatItem, previousOutgoing)
+            ChatItem.INCOMING_FILE -> (holder as IncomingFileViewHolder).bind(chatItem, previousOutgoing)
         }
     }
 
