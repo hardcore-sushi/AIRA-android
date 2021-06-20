@@ -17,6 +17,17 @@ AIRA is still under developement and is not ready for production usage yet. Not 
 - IPv4/v6 compatibility
 - Free/Libre and Open Source
 
+# Download
+AIRA releases are availables in the "Release" section. All APKs are signed with my PGP key available on keyservers. To download it:
+
+`gpg --keyserver hkp://pool.sks-keyservers.net --recv-keys 007F84120107191E` \
+Fingerprint: `BD56 2147 9E7B 74D3 6A40  5BE8 007F 8412 0107 191E` \
+Email: `Hardcore Sushi <hardcore.sushi@disroot.org>`
+
+Then, verify APK: `gpg --verify AIRA.apk.asc AIRA.apk`
+
+__Don't install the APK if the verification fails!__
+
 # Build
 ### Install Rust
 AIRA android uses some code from the desktop version which is written in Rust. Therefore, you need to compile this Rust code first.
