@@ -365,10 +365,11 @@ class ChatActivity : ServiceBoundActivity() {
         if (buffer == null) {
             Toast.makeText(this, R.string.loadFile_failed, Toast.LENGTH_SHORT).show()
         } else {
-            FileUtils.openFileForDownload(this, fileName)?.apply {
+            val file = FileUtils.openFileForDownload(this, fileName)
+            file.outputStream?.apply {
                 write(buffer)
                 close()
-                Toast.makeText(this@ChatActivity, R.string.file_saved, Toast.LENGTH_SHORT).show()
+                Toast.makeText(this@ChatActivity, getString(R.string.file_saved, file.fileName), Toast.LENGTH_SHORT).show()
             }
         }
     }

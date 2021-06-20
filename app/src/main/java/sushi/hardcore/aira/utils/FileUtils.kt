@@ -1,6 +1,5 @@
 package sushi.hardcore.aira.utils
 
-import android.content.ContentResolver
 import android.content.ContentValues
 import android.content.Context
 import android.net.Uri
@@ -9,7 +8,6 @@ import android.provider.MediaStore
 import android.provider.OpenableColumns
 import android.webkit.MimeTypeMap
 import android.widget.Toast
-import sushi.hardcore.aira.background_service.ReceiveFile
 import sushi.hardcore.aira.background_service.SendFile
 import java.io.File
 import java.io.FileNotFoundException
@@ -51,7 +49,9 @@ object FileUtils {
         return sendFile
     }
 
-    fun openFileForDownload(context: Context, fileName: String): OutputStream? {
+    class DownloadFile(val fileName: String, val outputStream: OutputStream?)
+
+    fun openFileForDownload(context: Context, fileName: String): DownloadFile {
         val fileExtension = fileName.substringAfterLast(".")
         val dateExtension = SimpleDateFormat("yyyyMMddHHmmss", Locale.getDefault()).format(Date())
         val datedFilename = if (fileName.contains(".")) {
@@ -60,7 +60,7 @@ object FileUtils {
         } else {
             fileName + "_" + dateExtension
         }
-        return if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.Q) {
+        val outputStream = if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.Q) {
             context.contentResolver.insert(
                     MediaStore.Downloads.EXTERNAL_CONTENT_URI,
                     ContentValues().apply {
@@ -75,5 +75,6 @@ object FileUtils {
             @Suppress("Deprecation")
             File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS), File(datedFilename).name).outputStream()
         }
+        return DownloadFile(datedFilename, outputStream)
     }
 }

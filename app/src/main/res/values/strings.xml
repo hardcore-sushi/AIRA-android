@@ -14,7 +14,7 @@
     <string name="login">Login</string>
     <string name="add_peer_ip">Add peer by IP</string>
     <string name="unknown">Unknown</string>
-    <string name="file_saved">File saved !</string>
+    <string name="file_saved">File saved to %s !</string>
     <string name="enter_password">Enter your password:</string>
     <string name="yes">Yes</string>
     <string name="no">No</string>

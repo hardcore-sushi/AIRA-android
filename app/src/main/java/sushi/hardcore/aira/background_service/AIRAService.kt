@@ -633,7 +633,7 @@ class AIRAService : Service() {
                                                     receiveFileTransfers[sessionId]?.let { filesReceiver ->
                                                         val file = filesReceiver.files[filesReceiver.index]
                                                         if (file.outputStream == null) {
-                                                            val outputStream = FileUtils.openFileForDownload(this, file.fileName)
+                                                            val outputStream = FileUtils.openFileForDownload(this, file.fileName).outputStream
                                                             if (outputStream == null) {
                                                                 cancelFileTransfer(sessionId)
                                                             } else {

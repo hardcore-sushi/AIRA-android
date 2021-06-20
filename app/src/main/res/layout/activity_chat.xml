@@ -54,7 +54,7 @@
             android:hint="@string/message_hint"
             android:autofillHints="message"
             style="@style/EditText"
-            android:inputType="textShortMessage|textAutoCorrect|textCapSentences"
+            android:inputType="textMultiLine|textShortMessage|textAutoCorrect|textCapSentences"
             app:layout_constraintTop_toTopOf="parent"
             app:layout_constraintBottom_toBottomOf="parent"
             app:layout_constraintStart_toEndOf="@id/bottom_image_trust_level"
