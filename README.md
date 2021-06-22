@@ -3,6 +3,12 @@ AIRA is peer-to-peer encrypted communication tool for local networks built on th
 
 Here is the Android version. You can find the original AIRA desktop version [here](https://forge.chapril.org/hardcoresushi/AIRA).
 
+<p align="center">
+<img alt="Screenshot of the main screen of AIRA-android, with Bob online and Angerfist and Barack Obama as contacts" src="https://forge.chapril.org/hardcoresushi/AIRA-android/raw/branch/master/screenshots/1.png" height="550"/>
+<img alt="Screenshot of a conversation between Alice and Bob about AIRA" src="https://forge.chapril.org/hardcoresushi/AIRA-android/raw/branch/master/screenshots/2.png" height="550"/>
+<img alt="Screenshot of the settings screen of AIRA-android" src="https://forge.chapril.org/hardcoresushi/AIRA-android/raw/branch/master/screenshots/3.png" height="550"/>
+</p>
+
 # Disclaimer
 AIRA is still under developement and is not ready for production usage yet. Not all features have been implemented and bugs are expected. Neither the code or the PSEC protocol received any security audit and therefore shouldn't be considered fully secure. AIRA is provided "as is", without any warranty of any kind.
 
