@@ -1,6 +1,7 @@
 package sushi.hardcore.aira
 
 import sushi.hardcore.aira.background_service.Protocol
+import java.util.*
 
 class ChatItem(val outgoing: Boolean, val timestamp: Long, val data: ByteArray) {
     companion object {
@@ -13,5 +14,17 @@ class ChatItem(val outgoing: Boolean, val timestamp: Long, val data: ByteArray) 
         if (outgoing) OUTGOING_MESSAGE else INCOMING_MESSAGE
     } else {
         if (outgoing) OUTGOING_FILE else INCOMING_FILE
+    }
+
+    val calendar: Calendar by lazy {
+        Calendar.getInstance().apply {
+            time = Date(timestamp * 1000)
+        }
+    }
+    val year by lazy {
+        calendar.get(Calendar.YEAR)
+    }
+    val dayOfYear by lazy {
+        calendar.get(Calendar.DAY_OF_YEAR)
     }
 }
