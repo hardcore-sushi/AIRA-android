@@ -566,8 +566,8 @@ class AIRAService : Service() {
             0
         }
         filesSender.nextChunk = if (read > 0) {
-            filesSender.lastChunkSizes.add(nextChunk.size)
-            session.encrypt(nextChunk, usePadding)
+            filesSender.lastChunkSizes.add(read+1)
+            session.encrypt(nextChunk.sliceArray(0 until read+1), usePadding)
         } else {
             null
         }
