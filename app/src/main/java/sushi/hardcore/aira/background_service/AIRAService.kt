@@ -400,7 +400,6 @@ class AIRAService : Service() {
                             )
                             .build()
             )
-
         }
         notificationManager.notify(notificationIdManager.getMessageNotificationId(sessionId), notificationBuilder.build())
     }

@@ -1,6 +1,5 @@
 package sushi.hardcore.aira.background_service
 
-import sushi.hardcore.aira.widgets.Avatar
 import java.nio.ByteBuffer
 
 class Protocol {
@@ -38,15 +37,17 @@ class Protocol {
         }
 
         fun newFile(fileName: String, buffer: ByteArray): ByteArray {
-            return byteArrayOf(FILE)+ByteBuffer.allocate(2).putShort(fileName.length.toShort()).array()+fileName.toByteArray()+buffer
+            val fileNameBytes = fileName.toByteArray()
+            return byteArrayOf(FILE)+ByteBuffer.allocate(2).putShort(fileNameBytes.size.toShort()).array()+fileNameBytes+buffer
         }
 
         fun askLargeFiles(files: List<SendFile>): ByteArray {
             var buff = byteArrayOf(ASK_LARGE_FILES)
             for (file in files) {
+                val fileName = file.fileName.toByteArray()
                 buff += ByteBuffer.allocate(8).putLong(file.fileSize).array()
-                buff += ByteBuffer.allocate(2).putShort(file.fileName.length.toShort()).array()
-                buff += file.fileName.toByteArray()
+                buff += ByteBuffer.allocate(2).putShort(fileName.size.toShort()).array()
+                buff += fileName
             }
             return buff
         }
