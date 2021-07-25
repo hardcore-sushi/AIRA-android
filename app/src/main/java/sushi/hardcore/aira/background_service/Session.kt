@@ -188,7 +188,7 @@ class Session(private val socket: SocketChannel, val outgoing: Boolean): Selecta
 
     fun encrypt(plainText: ByteArray, usePadding: Boolean): ByteArray {
         val padded = pad(plainText, usePadding)
-        val rawMsgLen = ByteBuffer.allocate(MESSAGE_LEN_LEN).putInt(padded.size).array()
+        val rawMsgLen = ByteBuffer.allocate(MESSAGE_LEN_LEN).putInt(padded.size+AES_TAG_LEN).array()
         val nonce = ivToNonce(applicationKeys.localIv, localCounter)
         localCounter++
         localCipher.init(Cipher.ENCRYPT_MODE, SecretKeySpec(applicationKeys.localKey, "AES"), GCMParameterSpec(AES_TAG_LEN*8, nonce))
@@ -219,7 +219,7 @@ class Session(private val socket: SocketChannel, val outgoing: Boolean): Selecta
         val rawMessageLen = ByteBuffer.allocate(MESSAGE_LEN_LEN)
         if (readAll(rawMessageLen)) {
             rawMessageLen.position(0)
-            val messageLen = rawMessageLen.int + AES_TAG_LEN
+            val messageLen = rawMessageLen.int
             if (messageLen in 1..MAX_RECV_SIZE) {
                 val cipherText = ByteBuffer.allocate(messageLen)
                 if (readAll(cipherText)) {
