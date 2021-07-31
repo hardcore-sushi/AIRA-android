@@ -67,19 +67,19 @@ class MainActivity : ServiceBoundActivity() {
                 onlineSessionAdapter.setName(sessionId, name)
             }
         }
-
         override fun onAvatarChanged(sessionId: Int, avatar: ByteArray?) {
             runOnUiThread {
                 onlineSessionAdapter.setAvatar(sessionId, avatar)
             }
         }
+        override fun onSent(sessionId: Int, timestamp: Long, buffer: ByteArray) {}
+        override fun onPendingMessagesSent(sessionId: Int) {}
         override fun onNewMessage(sessionId: Int, timestamp: Long, data: ByteArray): Boolean {
             runOnUiThread {
                 onlineSessionAdapter.setSeen(sessionId, false)
             }
             return false
         }
-
         override fun onAskLargeFiles(sessionId: Int, filesReceiver: FilesReceiver): Boolean {
             runOnUiThread {
                 filesReceiver.ask(this@MainActivity, airaService.getNameOf(sessionId))

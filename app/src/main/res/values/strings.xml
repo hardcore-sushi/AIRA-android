@@ -76,7 +76,6 @@
     <string name="file_transfer_already_in_progress">Another file transfer is already in progress</string>
     <string name="settings">Settings</string>
     <string name="log_out">Log out</string>
-    <string name="loadFile_failed">File extraction failed</string>
     <string name="copied">Copied to clipboard !</string>
     <string name="identity">Identity</string>
     <string name="about">About</string>
@@ -109,4 +108,9 @@
     <string name="clickable_indicator">Clickable indicator</string>
     <string name="avatar">Avatar</string>
     <string name="name">Name</string>
+    <string name="offline_warning_title">Your contact seems to be offline.</string>
+    <string name="offline_warning_msg">Sent messages will be stored until a connection is established.</string>
+    <string name="warning_desc">Warning icon</string>
+    <string name="pending_messages">Pending messages:</string>
+    <string name="sending_pending_messages">Sending pending messages…</string>
 </resources>

@@ -15,4 +15,6 @@
     <color name="outgoingTimestamp">#777777</color>
     <color name="incomingTimestamp">#d7d7d7</color>
     <color name="incomingHighlight">@color/outgoingTextLink</color>
+    <color name="offline_warning">#ff0000</color>
+    <color name="pending_msg_indicator">#909090</color>
 </resources>

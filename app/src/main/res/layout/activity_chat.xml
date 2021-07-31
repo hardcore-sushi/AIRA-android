@@ -13,14 +13,79 @@
         android:layout_width="match_parent"
         android:layout_height="0dp"
         app:layout_constraintTop_toBottomOf="@id/toolbar"
-        app:layout_constraintBottom_toTopOf="@id/bottom_panel"/>
+        app:layout_constraintBottom_toTopOf="@id/offline_warning"/>
+
+    <LinearLayout
+        android:id="@+id/sending_pending_msgs_indicator"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        app:layout_constraintTop_toBottomOf="@id/recycler_chat"
+        app:layout_constraintBottom_toTopOf="@id/bottom_panel"
+        android:visibility="gone"
+        android:gravity="center"
+        android:paddingVertical="10dp"
+        android:background="@drawable/sending_pending_msg_indictor_background">
+
+        <ProgressBar
+            android:layout_width="50dp"
+            android:layout_height="50dp"/>
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="@string/sending_pending_messages"
+            android:layout_gravity="center"
+            android:layout_marginStart="20dp"/>
+
+    </LinearLayout>
+
+    <LinearLayout
+        android:id="@+id/offline_warning"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        app:layout_constraintTop_toBottomOf="@id/recycler_chat"
+        app:layout_constraintBottom_toTopOf="@id/bottom_panel"
+        android:visibility="gone"
+        android:paddingHorizontal="30dp"
+        android:layout_marginBottom="15dp"
+        android:background="@drawable/offline_warning_background">
+
+        <ImageView
+            android:layout_width="50dp"
+            android:layout_height="50dp"
+            android:src="@drawable/ic_warning"
+            app:tint="@color/offline_warning"
+            android:contentDescription="@string/warning_desc"
+            android:layout_gravity="center_vertical"/>
+
+        <LinearLayout
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:layout_marginStart="20dp">
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:textSize="16sp"
+                android:textStyle="bold"
+                android:text="@string/offline_warning_title"/>
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="@string/offline_warning_msg"
+                android:textColor="#80ffffff"/>
+
+        </LinearLayout>
+
+    </LinearLayout>
 
     <androidx.constraintlayout.widget.ConstraintLayout
         android:id="@+id/bottom_panel"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         app:layout_constraintBottom_toBottomOf="parent"
-        android:visibility="gone"
         android:paddingVertical="5dp"
         android:background="@color/primary">
 

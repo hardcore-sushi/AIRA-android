@@ -3,8 +3,6 @@ package sushi.hardcore.aira.adapters
 import android.annotation.SuppressLint
 import android.content.Context
 import android.graphics.drawable.GradientDrawable
-import android.os.Handler
-import android.os.Looper
 import android.view.Gravity
 import android.view.LayoutInflater
 import android.view.View
@@ -16,8 +14,10 @@ import androidx.core.content.ContextCompat
 import androidx.core.view.updateMargins
 import androidx.core.view.updatePadding
 import androidx.recyclerview.widget.RecyclerView
+import sushi.hardcore.aira.AIRADatabase
 import sushi.hardcore.aira.ChatItem
 import sushi.hardcore.aira.R
+import sushi.hardcore.aira.background_service.Protocol
 import sushi.hardcore.aira.utils.StringUtils
 import sushi.hardcore.aira.utils.TimeUtils
 import java.text.DateFormat
@@ -41,9 +41,7 @@ class ChatAdapter(
 
     fun newMessage(chatItem: ChatItem) {
         chatItems.add(chatItem)
-        Handler(Looper.getMainLooper()).postDelayed({
-            notifyItemChanged(chatItems.size-2)
-        }, 100)
+        notifyItemChanged(chatItems.size-2)
         notifyItemInserted(chatItems.size-1)
     }
 
@@ -126,26 +124,44 @@ class ChatAdapter(
             bubble.background = backgroundDrawable
         }
         protected fun showDateAndTime(chatItem: ChatItem, previousChatItem: ChatItem?) {
-            val showDate = if (previousChatItem == null) {
-                true
-            } else {
-                !TimeUtils.isInTheSameDay(chatItem, previousChatItem)
-            }
+            var showTextPendingMsg = false
+            val textPendingMsg = itemView.findViewById<TextView>(R.id.text_pending_msg)
             val textDate = itemView.findViewById<TextView>(R.id.text_date)
+            val textHour = itemView.findViewById<TextView>(R.id.text_hour)
+            val showDate = if (chatItem.timestamp == 0L) {
+                if (previousChatItem == null || previousChatItem.timestamp != 0L) {
+                    showTextPendingMsg = true
+                }
+                textHour.visibility = View.GONE
+                false
+            } else {
+                textHour.apply {
+                    visibility = View.VISIBLE
+                    @SuppressLint("SetTextI18n")
+                    text = StringUtils.toTwoDigits(chatItem.calendar.get(Calendar.HOUR_OF_DAY))+":"+StringUtils.toTwoDigits(chatItem.calendar.get(Calendar.MINUTE))
+                    setTextColor(ContextCompat.getColor(context, if (chatItem.outgoing) {
+                        R.color.outgoingTimestamp
+                    } else {
+                        R.color.incomingTimestamp
+                    }))
+                }
+                if (previousChatItem == null) {
+                    true
+                } else {
+                    !TimeUtils.isInTheSameDay(chatItem, previousChatItem)
+                }
+            }
             textDate.visibility = if (showDate) {
                 textDate.text = DateFormat.getDateInstance().format(chatItem.calendar.time)
                 View.VISIBLE
             } else {
                 View.GONE
             }
-            val textHour = itemView.findViewById<TextView>(R.id.text_hour)
-            @SuppressLint("SetTextI18n")
-            textHour.text = StringUtils.toTwoDigits(chatItem.calendar.get(Calendar.HOUR_OF_DAY))+":"+StringUtils.toTwoDigits(chatItem.calendar.get(Calendar.MINUTE))
-            textHour.setTextColor(ContextCompat.getColor(context, if (chatItem.outgoing) {
-                R.color.outgoingTimestamp
+            textPendingMsg.visibility = if (showTextPendingMsg) {
+                View.VISIBLE
             } else {
-                R.color.incomingTimestamp
-            }))
+                View.GONE
+            }
         }
     }
 
@@ -184,18 +200,30 @@ class ChatAdapter(
         }
     }
 
-    internal open class FileViewHolder(context: Context, itemView: View, private val onSavingFile: (filename: String, rawUuid: ByteArray) -> Unit): BubbleViewHolder(context, itemView) {
+    internal open class FileViewHolder(context: Context, itemView: View, private val onSavingFile: (fileName: String, fileContent: ByteArray) -> Unit): BubbleViewHolder(context, itemView) {
         protected fun bindFile(chatItem: ChatItem, outgoing: Boolean) {
             setBubbleContent(R.layout.file_bubble_content)
-            val filename = chatItem.data.sliceArray(17 until chatItem.data.size).decodeToString()
+            val buttonSave = itemView.findViewById<ImageButton>(R.id.button_save)
+            val fileName: String
+            if (chatItem.timestamp == 0L) { //pending
+                val file = Protocol.parseSmallFile(chatItem.data)!!
+                fileName = file.rawFileName.decodeToString()
+                buttonSave.setOnClickListener {
+                    onSavingFile(fileName, file.fileContent)
+                }
+            } else {
+                fileName = chatItem.data.sliceArray(17 until chatItem.data.size).decodeToString()
+                buttonSave.setOnClickListener {
+                    AIRADatabase.loadFile(chatItem.data.sliceArray(1 until 17))?.let {
+                        onSavingFile(fileName, it)
+                    }
+                }
+            }
             itemView.findViewById<TextView>(R.id.text_filename).apply {
-                text = filename
+                text = fileName
                 if (!outgoing) {
                     highlightColor = ContextCompat.getColor(context, R.color.incomingHighlight)
                 }
-            }
-            itemView.findViewById<ImageButton>(R.id.button_save).setOnClickListener {
-                onSavingFile(filename, chatItem.data.sliceArray(1 until 17))
             }
         }
     }

@@ -10,10 +10,12 @@ class ChatItem(val outgoing: Boolean, val timestamp: Long, val data: ByteArray) 
         const val OUTGOING_FILE = 2
         const val INCOMING_FILE = 3
     }
-    val itemType = if (data[0] == Protocol.MESSAGE) {
-        if (outgoing) OUTGOING_MESSAGE else INCOMING_MESSAGE
-    } else {
-        if (outgoing) OUTGOING_FILE else INCOMING_FILE
+    val itemType: Int by lazy {
+        if (data[0] == Protocol.MESSAGE) {
+            if (outgoing) OUTGOING_MESSAGE else INCOMING_MESSAGE
+        } else {
+            if (outgoing) OUTGOING_FILE else INCOMING_FILE
+        }
     }
 
     val calendar: Calendar by lazy {

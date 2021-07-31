@@ -22,7 +22,7 @@ class NotificationBroadcastReceiver: BroadcastReceiver() {
                     ACTION_MARK_READ -> airaService.setSeen(sessionId, true)
                     ACTION_CANCEL_FILE_TRANSFER -> airaService.cancelFileTransfer(sessionId)
                     ACTION_REPLY -> RemoteInput.getResultsFromIntent(intent)?.getString(KEY_TEXT_REPLY)?.let { reply ->
-                        airaService.sendTo(sessionId, Protocol.newMessage(reply))
+                        airaService.sendOrAddToPending(sessionId, Protocol.newMessage(reply))
                         airaService.setSeen(sessionId, true)
                     }
                     else -> {}

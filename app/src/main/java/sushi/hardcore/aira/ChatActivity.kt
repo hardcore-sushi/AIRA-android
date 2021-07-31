@@ -13,17 +13,15 @@ import android.widget.ImageView
 import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AlertDialog
-import androidx.core.view.updatePadding
-import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import sushi.hardcore.aira.adapters.ChatAdapter
+import sushi.hardcore.aira.adapters.FuckRecyclerView
 import sushi.hardcore.aira.background_service.*
 import sushi.hardcore.aira.databinding.ActivityChatBinding
 import sushi.hardcore.aira.databinding.DialogFingerprintsBinding
 import sushi.hardcore.aira.databinding.DialogInfoBinding
 import sushi.hardcore.aira.utils.FileUtils
 import sushi.hardcore.aira.utils.StringUtils
-import sushi.hardcore.aira.utils.TimeUtils
 
 class ChatActivity : ServiceBoundActivity() {
     private external fun generateFingerprint(publicKey: ByteArray): String
@@ -36,7 +34,108 @@ class ChatActivity : ServiceBoundActivity() {
     private var lastLoadedMessageOffset = 0
     private val filePicker = registerForActivityResult(ActivityResultContracts.GetMultipleContents()) { uris ->
         if (isServiceInitialized() && uris.size > 0) {
-            airaService.sendFilesFromUris(sessionId, uris)
+            airaService.sendFilesFromUris(sessionId, uris) { buffer ->
+                chatAdapter.newMessage(ChatItem(true, 0, buffer))
+                scrollToBottom()
+            }
+        }
+    }
+    private val uiCallbacks = object : AIRAService.UiCallbacks {
+        override fun onConnectFailed(ip: String, errorMsg: String?) {}
+        override fun onNewSession(sessionId: Int, ip: String) {
+            if (this@ChatActivity.sessionId == sessionId) {
+                runOnUiThread {
+                    val contact = airaService.contacts[sessionId]
+                    if (contact == null) {
+                        binding.bottomPanel.visibility = View.VISIBLE
+                    } else {
+                        binding.offlineWarning.visibility = View.GONE
+                        if (airaService.pendingMsgs[sessionId]!!.size > 0) {
+                            binding.sendingPendingMsgsIndicator.visibility = View.VISIBLE
+                            //remove pending messages
+                            reloadHistory(contact)
+                            scrollToBottom()
+                        }
+                    }
+                    invalidateOptionsMenu()
+                }
+            }
+        }
+        override fun onSessionDisconnect(sessionId: Int) {
+            if (this@ChatActivity.sessionId == sessionId) {
+                runOnUiThread {
+                    if (airaService.isContact(sessionId)) {
+                        binding.offlineWarning.visibility = View.VISIBLE
+                    } else {
+                        hideBottomPanel()
+                    }
+                }
+            }
+        }
+        override fun onNameTold(sessionId: Int, name: String) {
+            if (this@ChatActivity.sessionId == sessionId) {
+                runOnUiThread {
+                    sessionName = name
+                    binding.toolbar.title.text = name
+                    if (avatar == null) {
+                        binding.toolbar.avatar.setTextAvatar(name)
+                    }
+                }
+            }
+        }
+        override fun onAvatarChanged(sessionId: Int, avatar: ByteArray?) {
+            if (this@ChatActivity.sessionId == sessionId) {
+                runOnUiThread {
+                    this@ChatActivity.avatar = avatar
+                    if (avatar == null) {
+                        binding.toolbar.avatar.setTextAvatar(sessionName)
+                    } else {
+                        binding.toolbar.avatar.setImageAvatar(avatar)
+                    }
+                }
+            }
+        }
+        override fun onSent(sessionId: Int, timestamp: Long, buffer: ByteArray) {
+            if (this@ChatActivity.sessionId == sessionId) {
+                if (airaService.isContact(sessionId)) {
+                    lastLoadedMessageOffset += 1
+                }
+                runOnUiThread {
+                    chatAdapter.newMessage(ChatItem(true, timestamp, buffer))
+                    scrollToBottom()
+                }
+            }
+        }
+        override fun onPendingMessagesSent(sessionId: Int) {
+            if (this@ChatActivity.sessionId == sessionId) {
+                runOnUiThread {
+                    binding.sendingPendingMsgsIndicator.visibility = View.GONE
+                }
+            }
+        }
+        override fun onNewMessage(sessionId: Int, timestamp: Long, data: ByteArray): Boolean {
+            return if (this@ChatActivity.sessionId == sessionId) {
+                runOnUiThread {
+                    chatAdapter.newMessage(ChatItem(false, timestamp, data))
+                    scrollToBottom()
+                }
+                if (airaService.isContact(sessionId)) {
+                    lastLoadedMessageOffset += 1
+                }
+                !airaService.isAppInBackground
+            } else {
+                false
+            }
+        }
+        override fun onAskLargeFiles(sessionId: Int, filesReceiver: FilesReceiver): Boolean {
+            return if (this@ChatActivity.sessionId == sessionId) {
+                runOnUiThread {
+                    filesReceiver.ask(this@ChatActivity, sessionName ?: airaService.sessions[sessionId]!!.ip)
+                }
+                true
+            } else {
+                false
+            }
         }
     }
     
@@ -52,7 +151,7 @@ class ChatActivity : ServiceBoundActivity() {
             chatAdapter = ChatAdapter(this@ChatActivity, ::onClickSaveFile)
             binding.recyclerChat.apply {
                 adapter = chatAdapter
-                layoutManager = LinearLayoutManager(this@ChatActivity, LinearLayoutManager.VERTICAL, false).apply {
+                layoutManager = FuckRecyclerView(this@ChatActivity).apply {
                     stackFromEnd = true
                 }
                 addOnScrollListener(object : RecyclerView.OnScrollListener() {
@@ -76,13 +175,11 @@ class ChatActivity : ServiceBoundActivity() {
             }
             binding.buttonSend.setOnClickListener {
                 val msg = binding.editMessage.text.toString()
-                airaService.sendTo(sessionId, Protocol.newMessage(msg))
                 binding.editMessage.text.clear()
-                chatAdapter.newMessage(ChatItem(true, TimeUtils.getTimestamp(), Protocol.newMessage(msg)))
-                if (airaService.contacts.contains(sessionId)) {
-                    lastLoadedMessageOffset += 1
+                if (!airaService.sendOrAddToPending(sessionId, Protocol.newMessage(msg))) {
+                    chatAdapter.newMessage(ChatItem(true, 0, Protocol.newMessage(msg)))
+                    scrollToBottom()
                 }
-                binding.recyclerChat.smoothScrollToPosition(chatAdapter.itemCount)
             }
             binding.buttonAttach.setOnClickListener {
                 filePicker.launch("*/*")
@@ -95,9 +192,8 @@ class ChatActivity : ServiceBoundActivity() {
                     val session = airaService.sessions[sessionId]
                     val contact = airaService.contacts[sessionId]
                     if (session == null && contact == null) { //may happen when resuming activity after session disconnect
-                        onDisconnected()
+                        hideBottomPanel()
                     } else {
-                        chatAdapter.clear()
                         val avatar = if (contact == null) {
                             displayIconTrustLevel(false, false)
                             sessionName = airaService.savedNames[sessionId]
@@ -117,93 +213,32 @@ class ChatActivity : ServiceBoundActivity() {
                                 binding.toolbar.avatar.setImageAvatar(image)
                             }
                         }
-                        if (contact != null) {
-                            loadMsgs(contact.uuid)
-                        }
-                        airaService.savedMsgs[sessionId]?.let {
-                            for (chatItem in it.asReversed()) {
-                                chatAdapter.newLoadedMessage(chatItem)
+                        reloadHistory(contact)
+                        airaService.pendingMsgs[sessionId]?.let {
+                            for (msg in it) {
+                                if (msg[0] == Protocol.MESSAGE ||msg[0] == Protocol.FILE) {
+                                    chatAdapter.newMessage(ChatItem(true, 0, msg))
+                                }
                             }
+                        }
+                        if (chatAdapter.itemCount > 0) {
+                            scrollToBottom()
                         }
                         airaService.receiveFileTransfers[sessionId]?.let {
                             if (it.shouldAsk) {
                                 it.ask(this@ChatActivity, ipName)
                             }
                         }
-                        binding.recyclerChat.smoothScrollToPosition(chatAdapter.itemCount)
-                        if (airaService.isOnline(sessionId)) {
-                            binding.bottomPanel.visibility = View.VISIBLE
-                            binding.recyclerChat.updatePadding(bottom = 0)
-                        } else {
-                            onDisconnected()
+                        if (session == null) {
+                            if (contact == null) {
+                                hideBottomPanel()
+                            } else {
+                                binding.offlineWarning.visibility = View.VISIBLE
+                            }
                         }
                         airaService.setSeen(sessionId, true)
                     }
-                    airaService.uiCallbacks = object : AIRAService.UiCallbacks {
-                        override fun onConnectFailed(ip: String, errorMsg: String?) {}
-                        override fun onNewSession(sessionId: Int, ip: String) {
-                            if (this@ChatActivity.sessionId == sessionId) {
-                                runOnUiThread {
-                                    binding.bottomPanel.visibility = View.VISIBLE
-                                    invalidateOptionsMenu()
-                                }
-                            }
-                        }
-                        override fun onSessionDisconnect(sessionId: Int) {
-                            if (this@ChatActivity.sessionId == sessionId) {
-                                runOnUiThread {
-                                    onDisconnected()
-                                }
-                            }
-                        }
-                        override fun onNameTold(sessionId: Int, name: String) {
-                            if (this@ChatActivity.sessionId == sessionId) {
-                                runOnUiThread {
-                                    sessionName = name
-                                    binding.toolbar.title.text = name
-                                    if (avatar == null) {
-                                        binding.toolbar.avatar.setTextAvatar(name)
-                                    }
-                                }
-                            }
-                        }
-                        override fun onAvatarChanged(sessionId: Int, avatar: ByteArray?) {
-                            if (this@ChatActivity.sessionId == sessionId) {
-                                runOnUiThread {
-                                    this@ChatActivity.avatar = avatar
-                                    if (avatar == null) {
-                                        binding.toolbar.avatar.setTextAvatar(sessionName)
-                                    } else {
-                                        binding.toolbar.avatar.setImageAvatar(avatar)
-                                    }
-                                }
-                            }
-                        }
-                        override fun onNewMessage(sessionId: Int, timestamp: Long, data: ByteArray): Boolean {
-                            return if (this@ChatActivity.sessionId == sessionId) {
-                                runOnUiThread {
-                                    chatAdapter.newMessage(ChatItem(false, timestamp, data))
-                                    binding.recyclerChat.smoothScrollToPosition(chatAdapter.itemCount)
-                                }
-                                if (airaService.contacts.contains(sessionId)) {
-                                    lastLoadedMessageOffset += 1
-                                }
-                                !airaService.isAppInBackground
-                            } else {
-                                false
-                            }
-                        }
-                        override fun onAskLargeFiles(sessionId: Int, filesReceiver: FilesReceiver): Boolean {
-                            return if (this@ChatActivity.sessionId == sessionId) {
-                                runOnUiThread {
-                                    filesReceiver.ask(this@ChatActivity, sessionName ?: airaService.sessions[sessionId]!!.ip)
-                                }
-                                true
-                            } else {
-                                false
-                            }
-                        }
-                    }
+                    airaService.uiCallbacks = uiCallbacks
                     airaService.isAppInBackground = false
                 }
                 override fun onServiceDisconnected(name: ComponentName?) {}
@@ -211,7 +246,7 @@ class ChatActivity : ServiceBoundActivity() {
         }
     }
 
-    private fun onDisconnected() {
+    private fun hideBottomPanel() {
         val inputManager = getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager
         inputManager.hideSoftInputFromWindow(binding.editMessage.windowToken, 0)
         binding.bottomPanel.visibility = View.GONE
@@ -252,6 +287,23 @@ class ChatActivity : ServiceBoundActivity() {
             }
             lastLoadedMessageOffset += it.size
         }
+    }
+
+    private fun reloadHistory(contact: Contact?) {
+        chatAdapter.clear()
+        lastLoadedMessageOffset = 0
+        if (contact != null) {
+            loadMsgs(contact.uuid)
+        }
+        airaService.savedMsgs[sessionId]?.let {
+            for (msg in it.asReversed()) {
+                chatAdapter.newLoadedMessage(ChatItem(msg.outgoing, msg.timestamp, msg.data))
+            }
+        }
+    }
+
+    private fun scrollToBottom() {
+        binding.recyclerChat.smoothScrollToPosition(chatAdapter.itemCount-1)
     }
 
     override fun onCreateOptionsMenu(menu: Menu): Boolean {
@@ -341,7 +393,7 @@ class ChatActivity : ServiceBoundActivity() {
                 true
             }
             R.id.refresh_profile -> {
-                airaService.sendTo(sessionId, Protocol.askProfileInfo())
+                airaService.sendOrAddToPending(sessionId, Protocol.askProfileInfo())
                 true
             }
             else -> super.onOptionsItemSelected(item)
@@ -355,22 +407,12 @@ class ChatActivity : ServiceBoundActivity() {
         }
     }
 
-    override fun onPause() {
-        super.onPause()
-        lastLoadedMessageOffset = 0
-    }
-
-    private fun onClickSaveFile(fileName: String, rawUuid: ByteArray) {
-        val buffer = AIRADatabase.loadFile(rawUuid)
-        if (buffer == null) {
-            Toast.makeText(this, R.string.loadFile_failed, Toast.LENGTH_SHORT).show()
-        } else {
-            val file = FileUtils.openFileForDownload(this, fileName)
-            file.outputStream?.apply {
-                write(buffer)
-                close()
-                Toast.makeText(this@ChatActivity, getString(R.string.file_saved, file.fileName), Toast.LENGTH_SHORT).show()
-            }
+    private fun onClickSaveFile(fileName: String, fileContent: ByteArray) {
+        val file = FileUtils.openFileForDownload(this, fileName)
+        file.outputStream?.apply {
+            write(fileContent)
+            close()
+            Toast.makeText(this@ChatActivity, getString(R.string.file_saved, file.fileName), Toast.LENGTH_SHORT).show()
         }
     }
 

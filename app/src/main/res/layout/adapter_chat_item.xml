@@ -9,8 +9,18 @@
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_gravity="center_horizontal"
-        android:visibility="gone"
         android:paddingVertical="5dp"/>
+
+    <TextView
+        android:id="@+id/text_pending_msg"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginHorizontal="20dp"
+        android:layout_marginVertical="10dp"
+        android:textAlignment="center"
+        android:text="@string/pending_messages"
+        android:textColor="@color/pending_msg_indicator"
+        android:background="@drawable/pending_msg_indicator_background"/>
 
     <LinearLayout
         android:id="@+id/bubble"

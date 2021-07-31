@@ -88,6 +88,7 @@ class AIRAService : Service() {
         override fun onServiceLost(serviceInfo: NsdServiceInfo?) {}
     }
     val savedMsgs = mutableMapOf<Int, MutableList<ChatItem>>()
+    val pendingMsgs = mutableMapOf<Int, MutableList<ByteArray>>()
     val savedNames = mutableMapOf<Int, String>()
     val savedAvatars = mutableMapOf<Int, String>()
     val notSeen = mutableListOf<Int>()
@@ -109,6 +110,8 @@ class AIRAService : Service() {
         fun onSessionDisconnect(sessionId: Int)
         fun onNameTold(sessionId: Int, name: String)
         fun onAvatarChanged(sessionId: Int, avatar: ByteArray?)
+        fun onSent(sessionId: Int, timestamp: Long, buffer: ByteArray)
+        fun onPendingMessagesSent(sessionId: Int)
         fun onNewMessage(sessionId: Int, timestamp: Long, data: ByteArray): Boolean
         fun onAskLargeFiles(sessionId: Int, filesReceiver: FilesReceiver): Boolean
     }
@@ -121,14 +124,20 @@ class AIRAService : Service() {
         }
     }
 
-    fun sendTo(sessionId: Int, buffer: ByteArray) {
-        serviceHandler.obtainMessage().apply {
-            what = MESSAGE_SEND_TO
-            data = Bundle().apply {
-                putInt("sessionId", sessionId)
-                putByteArray("buff", buffer)
+    fun sendOrAddToPending(sessionId: Int, buffer: ByteArray): Boolean {
+        return if (isOnline(sessionId)) {
+            serviceHandler.obtainMessage().apply {
+                what = MESSAGE_SEND_TO
+                data = Bundle().apply {
+                    putInt("sessionId", sessionId)
+                    putByteArray("buff", buffer)
+                }
+                serviceHandler.sendMessage(this)
             }
-            serviceHandler.sendMessage(this)
+            true
+        } else {
+            pendingMsgs[sessionId]?.add(buffer)
+            false
         }
     }
 
@@ -140,7 +149,7 @@ class AIRAService : Service() {
         }
     }
 
-    fun sendFilesFromUris(sessionId: Int, uris: List<Uri>) {
+    fun sendFilesFromUris(sessionId: Int, uris: List<Uri>, onPendingSmallFile: ((ByteArray) -> Unit)? = null) {
         val files = mutableListOf<SendFile>()
         var useLargeFileTransfer = false
         for (uri in uris) {
@@ -155,17 +164,13 @@ class AIRAService : Service() {
             sendLargeFilesTo(sessionId, files)
         } else {
             for (file in files) {
-                sendSmallFileTo(sessionId, file)
+                var buffer = file.inputStream.readBytes()
+                file.inputStream.close()
+                buffer = Protocol.newFile(file.fileName, buffer)
+                if (!sendOrAddToPending(sessionId, buffer)) {
+                    onPendingSmallFile?.let { it(buffer) }
+                }
             }
-        }
-    }
-
-    private fun sendSmallFileTo(sessionId: Int, sendFile: SendFile) {
-        val buffer = sendFile.inputStream.readBytes()
-        sendFile.inputStream.close()
-        sendTo(sessionId, Protocol.newFile(sendFile.fileName, buffer))
-        AIRADatabase.storeFile(contacts[sessionId]?.uuid, buffer)?.let { rawFileUuid ->
-            saveMsg(sessionId, TimeUtils.getTimestamp(), byteArrayOf(Protocol.FILE) + rawFileUuid + sendFile.fileName.toByteArray())
         }
     }
 
@@ -174,7 +179,7 @@ class AIRAService : Service() {
             val filesSender = FilesSender(files, this, notificationManager)
             initFileTransferNotification(sessionId, filesSender.fileTransferNotification, filesSender.files[0])
             sendFileTransfers[sessionId] = filesSender
-            sendTo(sessionId, Protocol.askLargeFiles(files))
+            sendOrAddToPending(sessionId, Protocol.askLargeFiles(files))
         } else {
             Toast.makeText(this, R.string.file_transfer_already_in_progress, Toast.LENGTH_SHORT).show()
         }
@@ -194,7 +199,7 @@ class AIRAService : Service() {
         return contacts[sessionId]?.name ?: savedNames[sessionId] ?: sessions[sessionId]!!.ip
     }
 
-    private fun isContact(sessionId: Int): Boolean {
+    fun isContact(sessionId: Int): Boolean {
         return contacts.contains(sessionId)
     }
 
@@ -208,6 +213,7 @@ class AIRAService : Service() {
                     }
                 }
                 savedNames.remove(sessionId)
+                pendingMsgs[sessionId] = mutableListOf()
                 savedAvatars.remove(sessionId)
                 return true
             }
@@ -245,6 +251,7 @@ class AIRAService : Service() {
         contacts.remove(sessionId)?.let {
             return if (AIRADatabase.removeContact(it.uuid)) {
                 savedMsgs[sessionId] = mutableListOf()
+                pendingMsgs.remove(sessionId)
                 savedNames[sessionId] = it.name
                 it.avatar?.let { avatarUuid ->
                     savedAvatars[sessionId] = avatarUuid
@@ -328,7 +335,12 @@ class AIRAService : Service() {
                             val key = session.register(selector, SelectionKey.OP_READ)
                             sessionIdByKey[key] = sessionId
                             uiCallbacks?.onNewSession(sessionId, session.ip)
-                            if (!isContact(sessionId)) {
+                            if (isContact(sessionId)) {
+                                for (i in 0 until pendingMsgs[sessionId]!!.size) {
+                                    sendAndSave(sessionId, pendingMsgs[sessionId]!!.removeAt(0))
+                                }
+                                uiCallbacks?.onPendingMessagesSent(sessionId)
+                            } else {
                                 session.encryptAndSend(Protocol.askProfileInfo(), usePadding)
                             }
                         } else {
@@ -429,10 +441,20 @@ class AIRAService : Service() {
         }
     }
 
-    private fun sendAndSave(sessionId: Int, msg: ByteArray) {
-        sessions[sessionId]?.encryptAndSend(msg, usePadding)
-        if (msg[0] == Protocol.MESSAGE) {
-            saveMsg(sessionId, TimeUtils.getTimestamp(), msg)
+    private fun sendAndSave(sessionId: Int, buffer: ByteArray) {
+        sessions[sessionId]?.encryptAndSend(buffer, usePadding)
+        val timestamp = TimeUtils.getTimestamp()
+        if (buffer[0] == Protocol.MESSAGE) {
+            uiCallbacks?.onSent(sessionId, timestamp, buffer)
+            saveMsg(sessionId, timestamp, buffer)
+        } else if (buffer[0] == Protocol.FILE) {
+            Protocol.parseSmallFile(buffer)?.let { file ->
+                AIRADatabase.storeFile(contacts[sessionId]?.uuid, file.fileContent)?.let { rawFileUuid ->
+                    val msg = byteArrayOf(Protocol.FILE) + rawFileUuid + file.rawFileName
+                    uiCallbacks?.onSent(sessionId, timestamp, msg)
+                    saveMsg(sessionId, timestamp, msg)
+                }
+            }
         }
     }
 
@@ -533,6 +555,7 @@ class AIRAService : Service() {
             contacts = HashMap(contactList.size)
             for (contact in contactList) {
                 contacts[sessionCounter] = contact
+                pendingMsgs[sessionCounter] = mutableListOf()
                 if (!contact.seen) {
                     notSeen.add(sessionCounter)
                 }
@@ -720,10 +743,10 @@ class AIRAService : Service() {
                                                                                 filesReceiver.fileTransferNotification,
                                                                                 filesReceiver.files[0],
                                                                         )
-                                                                        sendTo(sessionId, Protocol.acceptLargeFiles())
+                                                                        session.encryptAndSend(Protocol.acceptLargeFiles(), usePadding)
                                                                     }, { filesReceiver ->
                                                                         receiveFileTransfers.remove(sessionId)
-                                                                        sendTo(sessionId, Protocol.abortFilesTransfer())
+                                                                        session.encryptAndSend(Protocol.abortFilesTransfer(), usePadding)
                                                                         filesReceiver.fileTransferNotification.cancel()
                                                                     },
                                                                     this,
