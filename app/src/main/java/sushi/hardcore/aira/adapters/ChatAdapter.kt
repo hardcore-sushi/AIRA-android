@@ -51,6 +51,14 @@ class ChatAdapter(
         notifyItemChanged(1)
     }
 
+    fun removePendingMessages() {
+        val oldSize = chatItems.size
+        chatItems.removeAll {
+            it.timestamp == 0L
+        }
+        notifyItemRangeRemoved(chatItems.size, oldSize-chatItems.size)
+    }
+
     fun clear() {
         chatItems.clear()
         notifyDataSetChanged()

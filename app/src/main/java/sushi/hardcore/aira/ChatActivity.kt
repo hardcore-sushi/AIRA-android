@@ -44,16 +44,16 @@ class ChatActivity : ServiceBoundActivity() {
         override fun onConnectFailed(ip: String, errorMsg: String?) {}
         override fun onNewSession(sessionId: Int, ip: String) {
             if (this@ChatActivity.sessionId == sessionId) {
+                val contact = airaService.contacts[sessionId]
+                val hasPendingMsg = airaService.pendingMsgs[sessionId]?.size ?: 0 > 0
                 runOnUiThread {
-                    val contact = airaService.contacts[sessionId]
                     if (contact == null) {
                         binding.bottomPanel.visibility = View.VISIBLE
                     } else {
                         binding.offlineWarning.visibility = View.GONE
-                        if (airaService.pendingMsgs[sessionId]!!.size > 0) {
+                        if (hasPendingMsg) {
                             binding.sendingPendingMsgsIndicator.visibility = View.VISIBLE
-                            //remove pending messages
-                            reloadHistory(contact)
+                            chatAdapter.removePendingMessages()
                             scrollToBottom()
                         }
                     }
@@ -213,7 +213,16 @@ class ChatActivity : ServiceBoundActivity() {
                                 binding.toolbar.avatar.setImageAvatar(image)
                             }
                         }
-                        reloadHistory(contact)
+                        chatAdapter.clear()
+                        lastLoadedMessageOffset = 0
+                        if (contact != null) {
+                            loadMsgs(contact.uuid)
+                        }
+                        airaService.savedMsgs[sessionId]?.let {
+                            for (msg in it.asReversed()) {
+                                chatAdapter.newLoadedMessage(ChatItem(msg.outgoing, msg.timestamp, msg.data))
+                            }
+                        }
                         airaService.pendingMsgs[sessionId]?.let {
                             for (msg in it) {
                                 if (msg[0] == Protocol.MESSAGE ||msg[0] == Protocol.FILE) {
@@ -286,19 +295,6 @@ class ChatActivity : ServiceBoundActivity() {
                 chatAdapter.newLoadedMessage(chatItem)
             }
             lastLoadedMessageOffset += it.size
-        }
-    }
-
-    private fun reloadHistory(contact: Contact?) {
-        chatAdapter.clear()
-        lastLoadedMessageOffset = 0
-        if (contact != null) {
-            loadMsgs(contact.uuid)
-        }
-        airaService.savedMsgs[sessionId]?.let {
-            for (msg in it.asReversed()) {
-                chatAdapter.newLoadedMessage(ChatItem(msg.outgoing, msg.timestamp, msg.data))
-            }
         }
     }
 
