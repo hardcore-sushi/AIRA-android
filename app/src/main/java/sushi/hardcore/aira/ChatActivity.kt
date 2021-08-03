@@ -45,13 +45,13 @@ class ChatActivity : ServiceBoundActivity() {
         override fun onNewSession(sessionId: Int, ip: String) {
             if (this@ChatActivity.sessionId == sessionId) {
                 val contact = airaService.contacts[sessionId]
-                val hasPendingMsg = airaService.pendingMsgs[sessionId]?.size ?: 0 > 0
+                val hasPendingMsgs = airaService.pendingMsgs[sessionId]?.size ?: 0 > 0
                 runOnUiThread {
                     if (contact == null) {
                         binding.bottomPanel.visibility = View.VISIBLE
                     } else {
                         binding.offlineWarning.visibility = View.GONE
-                        if (hasPendingMsg) {
+                        if (hasPendingMsgs) {
                             binding.sendingPendingMsgsIndicator.visibility = View.VISIBLE
                             chatAdapter.removePendingMessages()
                             scrollToBottom()
@@ -223,10 +223,14 @@ class ChatActivity : ServiceBoundActivity() {
                                 chatAdapter.newLoadedMessage(ChatItem(msg.outgoing, msg.timestamp, msg.data))
                             }
                         }
+                        var hasPendingMsgs = false
                         airaService.pendingMsgs[sessionId]?.let {
-                            for (msg in it) {
-                                if (msg[0] == Protocol.MESSAGE ||msg[0] == Protocol.FILE) {
-                                    chatAdapter.newMessage(ChatItem(true, 0, msg))
+                            if (it.size > 0) {
+                                hasPendingMsgs = true
+                                for (msg in it) {
+                                    if (msg[0] == Protocol.MESSAGE ||msg[0] == Protocol.FILE) {
+                                        chatAdapter.newMessage(ChatItem(true, 0, msg))
+                                    }
                                 }
                             }
                         }
@@ -238,11 +242,19 @@ class ChatActivity : ServiceBoundActivity() {
                                 it.ask(this@ChatActivity, ipName)
                             }
                         }
-                        if (session == null) {
+                        binding.sendingPendingMsgsIndicator.visibility = if (session == null) {
                             if (contact == null) {
                                 hideBottomPanel()
                             } else {
                                 binding.offlineWarning.visibility = View.VISIBLE
+                            }
+                            View.GONE
+                        } else {
+                            binding.offlineWarning.visibility = View.GONE
+                            if (hasPendingMsgs) {
+                                View.VISIBLE
+                            } else {
+                                View.GONE
                             }
                         }
                         airaService.setSeen(sessionId, true)
@@ -348,6 +360,10 @@ class ChatActivity : ServiceBoundActivity() {
                             if (airaService.removeContact(sessionId)) {
                                 invalidateOptionsMenu()
                                 displayIconTrustLevel(false, false)
+                                if (!airaService.isOnline(sessionId)) {
+                                    hideBottomPanel()
+                                    binding.offlineWarning.visibility = View.GONE
+                                }
                             }
                         }
                         .setNegativeButton(R.string.cancel, null)
