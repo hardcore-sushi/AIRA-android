@@ -1,5 +1,6 @@
 package sushi.hardcore.aira.background_service
 
+import android.annotation.SuppressLint
 import android.app.*
 import android.content.Context
 import android.content.Intent
@@ -22,6 +23,7 @@ import java.io.IOException
 import java.net.*
 import java.nio.channels.*
 
+@SuppressLint("UnspecifiedImmutableFlag")
 class AIRAService : Service() {
     private external fun releaseIdentity()
 
@@ -36,6 +38,7 @@ class AIRAService : Service() {
         const val MESSAGE_SEND_NAME = 3
         const val MESSAGE_SEND_AVATAR = 4
         const val MESSAGE_CANCEL_FILE_TRANSFER = 5
+        const val FLAG_PENDING_INTENT = PendingIntent.FLAG_UPDATE_CURRENT
 
         var isServiceRunning = false
     }
@@ -360,7 +363,7 @@ class AIRAService : Service() {
     }
 
     private fun sendNotification(sessionId: Int, msgContent: ByteArray) {
-        val notificationBuilder = NotificationCompat.Builder(this, MESSAGES_NOTIFICATION_CHANNEL_ID)
+        val notification = NotificationCompat.Builder(this, MESSAGES_NOTIFICATION_CHANNEL_ID)
                 .setCategory(NotificationCompat.CATEGORY_MESSAGE)
                 .setSmallIcon(R.drawable.ic_launcher)
                 .setContentTitle(getNameOf(sessionId))
@@ -374,49 +377,35 @@ class AIRAService : Service() {
                 .setContentIntent(
                         PendingIntent.getActivity(this, 0, Intent(this, ChatActivity::class.java).apply {
                                 putExtra("sessionId", sessionId)
-                        }, 0)
+                        }, FLAG_PENDING_INTENT)
                 )
                 .setAutoCancel(true)
                 .setDefaults(Notification.DEFAULT_ALL)
                 .apply {
                     priority = NotificationCompat.PRIORITY_HIGH
                 }
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.KITKAT_WATCH) {
-            val markReadIntent = PendingIntent.getBroadcast(this, 0,
-                    Intent(this, NotificationBroadcastReceiver::class.java).apply {
-                        val bundle = Bundle()
-                        bundle.putBinder("binder", AIRABinder())
-                        bundle.putInt("sessionId", sessionId)
-                        putExtra("bundle", bundle)
-                        action = NotificationBroadcastReceiver.ACTION_MARK_READ
-                    }, PendingIntent.FLAG_UPDATE_CURRENT)
-            notificationBuilder.addAction(
-                    NotificationCompat.Action(
-                            R.drawable.ic_launcher,
-                            getString(R.string.mark_read),
-                            markReadIntent
+                .addAction(NotificationCompat.Action(
+                    R.drawable.ic_launcher,
+                    getString(R.string.mark_read),
+                    newActionPendingIntent {
+                        it.putBinder(sessionId)
+                        it.action = NotificationBroadcastReceiver.ACTION_MARK_READ
+                    }
+                ))
+                .addAction(
+                    NotificationCompat.Action.Builder(R.drawable.ic_launcher, getString(R.string.reply), newActionPendingIntent {
+                        it.putBinder(sessionId)
+                        it.action = NotificationBroadcastReceiver.ACTION_REPLY
+                    })
+                    .addRemoteInput(
+                            RemoteInput.Builder(NotificationBroadcastReceiver.KEY_TEXT_REPLY)
+                                    .setLabel(getString(R.string.reply))
+                                    .build()
                     )
-            )
-            val replyPendingIntent: PendingIntent =
-                    PendingIntent.getBroadcast(this, 0,
-                            Intent(this, NotificationBroadcastReceiver::class.java).apply {
-                                val bundle = Bundle()
-                                bundle.putBinder("binder", AIRABinder())
-                                bundle.putInt("sessionId", sessionId)
-                                putExtra("bundle", bundle)
-                                action = NotificationBroadcastReceiver.ACTION_REPLY
-                            }, PendingIntent.FLAG_UPDATE_CURRENT)
-            notificationBuilder.addAction(
-                    NotificationCompat.Action.Builder(R.drawable.ic_launcher, getString(R.string.reply), replyPendingIntent)
-                            .addRemoteInput(
-                                    RemoteInput.Builder(NotificationBroadcastReceiver.KEY_TEXT_REPLY)
-                                            .setLabel(getString(R.string.reply))
-                                            .build()
-                            )
-                            .build()
-            )
-        }
-        notificationManager.notify(notificationIdManager.getMessageNotificationId(sessionId), notificationBuilder.build())
+                    .build()
+                )
+                .build()
+        notificationManager.notify(notificationIdManager.getMessageNotificationId(sessionId), notification)
     }
 
     private fun initFileTransferNotification(sessionId: Int, fileTransferNotification: FileTransferNotification, file: PendingFile) {
@@ -425,13 +414,17 @@ class AIRAService : Service() {
                 file.fileName,
                 file.fileSize.toInt(),
                 Intent(this, NotificationBroadcastReceiver::class.java).apply {
-                    val bundle = Bundle()
-                    bundle.putBinder("binder", AIRABinder())
-                    bundle.putInt("sessionId", sessionId)
-                    putExtra("bundle", bundle)
+                    putBinder(sessionId)
                     action = NotificationBroadcastReceiver.ACTION_CANCEL_FILE_TRANSFER
                 }
         )
+    }
+
+    private fun Intent.putBinder(sessionId: Int) {
+        val bundle = Bundle()
+        bundle.putBinder("binder", AIRABinder())
+        bundle.putInt("sessionId", sessionId)
+        putExtra("bundle", bundle)
     }
 
     private fun saveMsg(sessionId: Int, timestamp: Long, msg: ByteArray) {
@@ -768,7 +761,7 @@ class AIRAService : Service() {
                                                                         .setContentIntent(
                                                                                 PendingIntent.getActivity(this, 0, Intent(this, ChatActivity::class.java).apply {
                                                                                     putExtra("sessionId", sessionId)
-                                                                                }, 0)
+                                                                                }, FLAG_PENDING_INTENT)
                                                                         )
                                                                         .setDefaults(Notification.DEFAULT_ALL)
                                                                         .apply {
@@ -875,6 +868,7 @@ class AIRAService : Service() {
                         }
                     }
                 }
+                keys.clear()
             }
             for (session in sessions.values) {
                 session.close()
@@ -928,21 +922,37 @@ class AIRAService : Service() {
         )
     }
 
+    private fun newActionPendingIntent(intentBuilder: (Intent) -> Unit): PendingIntent {
+        return PendingIntent.getBroadcast(this, 0,
+            Intent(this, NotificationBroadcastReceiver::class.java).apply {
+                intentBuilder(this)
+            }, FLAG_PENDING_INTENT
+        )
+    }
+
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         notificationManager = NotificationManagerCompat.from(this)
-        val notificationBuilder = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             createNotificationChannels()
-            Notification.Builder(this, SERVICE_NOTIFICATION_CHANNEL_ID)
-        } else {
-            @Suppress("Deprecation")
-            Notification.Builder(this)
         }
+        val notificationBuilder = NotificationCompat.Builder(this, SERVICE_NOTIFICATION_CHANNEL_ID)
         val notification: Notification = notificationBuilder
             .setContentTitle(getString(R.string.background_service))
             .setSmallIcon(R.drawable.ic_launcher)
             .setContentIntent(
-                PendingIntent.getActivity(this, 0, Intent(this, MainActivity::class.java), 0)
+                PendingIntent.getActivity(this, 0,
+                    Intent(this, MainActivity::class.java).apply {
+                        setFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
+                    },
+                FLAG_PENDING_INTENT)
             )
+            .addAction(NotificationCompat.Action(
+                R.drawable.ic_launcher,
+                getString(R.string.stop),
+                newActionPendingIntent {
+                    it.action = NotificationBroadcastReceiver.ACTION_LOGOUT
+                }
+            ))
             .build()
         startForeground(1, notification)
 

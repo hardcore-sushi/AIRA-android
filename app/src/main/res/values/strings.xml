@@ -99,6 +99,11 @@
     <string name="github_summary">AIRA-android repository on GitHub.</string>
     <string name="gitea">Gitea</string>
     <string name="gitea_summary">AIRA-android repository on the Gitea instance of the Chapril project. Unlike GitHub, Gitea is fully free software and self-hosted.</string>
+    <string name="offline_warning_title">Your contact seems to be offline.</string>
+    <string name="offline_warning_msg">Sent messages will be stored until a connection is established.</string>
+    <string name="pending_messages">Pending messages:</string>
+    <string name="sending_pending_messages">Sending pending messages…</string>
+    <string name="stop">Stop</string>
 
     <!--accessibility strings-->
     <string name="send_file">Send file</string>
@@ -108,9 +113,5 @@
     <string name="clickable_indicator">Clickable indicator</string>
     <string name="avatar">Avatar</string>
     <string name="name">Name</string>
-    <string name="offline_warning_title">Your contact seems to be offline.</string>
-    <string name="offline_warning_msg">Sent messages will be stored until a connection is established.</string>
     <string name="warning_desc">Warning icon</string>
-    <string name="pending_messages">Pending messages:</string>
-    <string name="sending_pending_messages">Sending pending messages…</string>
 </resources>

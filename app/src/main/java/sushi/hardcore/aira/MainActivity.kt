@@ -17,6 +17,7 @@ import sushi.hardcore.aira.adapters.Session
 import sushi.hardcore.aira.adapters.SessionAdapter
 import sushi.hardcore.aira.background_service.AIRAService
 import sushi.hardcore.aira.background_service.FilesReceiver
+import sushi.hardcore.aira.background_service.NotificationBroadcastReceiver
 import sushi.hardcore.aira.databinding.ActivityMainBinding
 import sushi.hardcore.aira.databinding.DialogIpAddressesBinding
 import sushi.hardcore.aira.utils.FileUtils
@@ -145,6 +146,9 @@ class MainActivity : ServiceBoundActivity() {
                 }
                 setOnScrollListener(onSessionsScrollListener)
             }
+            if (intent.action == NotificationBroadcastReceiver.ACTION_LOGOUT) {
+                askLogOut()
+            }
         }
         serviceConnection = object : ServiceConnection {
             override fun onServiceConnected(name: ComponentName?, service: IBinder) {
@@ -209,18 +213,7 @@ class MainActivity : ServiceBoundActivity() {
             }
             R.id.close -> {
                 if (isServiceInitialized()) {
-                    AlertDialog.Builder(this, R.style.CustomAlertDialog)
-                        .setTitle(R.string.warning)
-                        .setMessage(R.string.ask_log_out)
-                        .setPositiveButton(R.string.yes) { _, _ ->
-                            airaService.logOut()
-                            if (AIRADatabase.isIdentityProtected(Constants.getDatabaseFolder(this))) {
-                                startActivity(Intent(this, LoginActivity::class.java))
-                            }
-                            finish()
-                        }
-                        .setNegativeButton(R.string.cancel, null)
-                        .show()
+                    askLogOut()
                 }
                 true
             }
@@ -332,6 +325,21 @@ class MainActivity : ServiceBoundActivity() {
         startActivity(Intent(this, ChatActivity::class.java).apply {
             putExtra("sessionId", session.sessionId)
         })
+    }
+
+    private fun askLogOut() {
+        AlertDialog.Builder(this, R.style.CustomAlertDialog)
+            .setTitle(R.string.warning)
+            .setMessage(R.string.ask_log_out)
+            .setPositiveButton(R.string.yes) { _, _ ->
+                airaService.logOut()
+                if (AIRADatabase.isIdentityProtected(Constants.getDatabaseFolder(this))) {
+                    startActivity(Intent(this, LoginActivity::class.java))
+                }
+                finish()
+            }
+            .setNegativeButton(R.string.cancel, null)
+            .show()
     }
 
     private fun askShareFileTo(session: Session) {
