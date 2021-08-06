@@ -43,7 +43,6 @@ class AIRAService : Service() {
     private val binder = AIRABinder()
     val sessions = mutableMapOf<Int, Session>()
     private var sessionCounter = 0
-    private var server: ServerSocketChannel? = null
     private lateinit var selector: Selector
     private val sessionIdByKey = mutableMapOf<SelectionKey, Int>()
     private val notificationIdManager = NotificationIdManager()
@@ -124,16 +123,20 @@ class AIRAService : Service() {
         }
     }
 
+    private fun sendTo(sessionId: Int, buffer: ByteArray) {
+        serviceHandler.obtainMessage().apply {
+            what = MESSAGE_SEND_TO
+            data = Bundle().apply {
+                putInt("sessionId", sessionId)
+                putByteArray("buff", buffer)
+            }
+            serviceHandler.sendMessage(this)
+        }
+    }
+
     fun sendOrAddToPending(sessionId: Int, buffer: ByteArray): Boolean {
         return if (isOnline(sessionId)) {
-            serviceHandler.obtainMessage().apply {
-                what = MESSAGE_SEND_TO
-                data = Bundle().apply {
-                    putInt("sessionId", sessionId)
-                    putByteArray("buff", buffer)
-                }
-                serviceHandler.sendMessage(this)
-            }
+            sendTo(sessionId, buffer)
             true
         } else {
             pendingMsgs[sessionId]?.add(buffer)
@@ -536,10 +539,6 @@ class AIRAService : Service() {
                                 quit()
                                 stopSelf()
                                 uiCallbacks = null
-                                for (session in sessions.values) {
-                                    session.close()
-                                }
-                                server?.close()
                             }
                         }
                     } catch (e: IOException) {
@@ -624,7 +623,7 @@ class AIRAService : Service() {
     }
 
     private fun startListening() {
-        server = try {
+        val server = try {
             ServerSocketChannel.open().apply {
                 configureBlocking(false)
                 socket().bind(InetSocketAddress(Constants.port))
@@ -743,10 +742,10 @@ class AIRAService : Service() {
                                                                                 filesReceiver.fileTransferNotification,
                                                                                 filesReceiver.files[0],
                                                                         )
-                                                                        session.encryptAndSend(Protocol.acceptLargeFiles(), usePadding)
+                                                                        sendTo(sessionId, Protocol.acceptLargeFiles())
                                                                     }, { filesReceiver ->
                                                                         receiveFileTransfers.remove(sessionId)
-                                                                        session.encryptAndSend(Protocol.abortFilesTransfer(), usePadding)
+                                                                        sendTo(sessionId, Protocol.abortFilesTransfer())
                                                                         filesReceiver.fileTransferNotification.cancel()
                                                                     },
                                                                     this,
@@ -877,6 +876,10 @@ class AIRAService : Service() {
                     }
                 }
             }
+            for (session in sessions.values) {
+                session.close()
+            }
+            server?.close()
         }.start()
     }
 
