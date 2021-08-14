@@ -8,7 +8,6 @@ import android.os.Bundle
 import android.os.IBinder
 import android.view.Menu
 import android.view.MenuItem
-import android.view.View
 import android.widget.AbsListView
 import android.widget.AdapterView
 import android.widget.Toast
@@ -117,33 +116,28 @@ class MainActivity : ServiceBoundActivity() {
             }
             setOnScrollListener(onSessionsScrollListener)
         }
-        if (openedToShareFile) {
-            binding.offlineSessions.visibility = View.GONE
-            binding.textOfflineSessions.visibility = View.GONE
-        } else {
-            offlineSessionAdapter = SessionAdapter(this)
-            binding.offlineSessions.apply {
-                adapter = offlineSessionAdapter
-                onItemClickListener = if (openedToShareFile) {
-                    onSessionsItemClickSendFile
-                } else {
-                    AdapterView.OnItemClickListener { _, _, position, _ ->
-                        if (isSelecting()) {
-                            changeSelection(offlineSessionAdapter!!, position)
-                        } else {
-                            launchChatActivity(offlineSessionAdapter!!.getItem(position))
-                        }
+        offlineSessionAdapter = SessionAdapter(this)
+        binding.offlineSessions.apply {
+            adapter = offlineSessionAdapter
+            onItemClickListener = if (openedToShareFile) {
+                onSessionsItemClickSendFile
+            } else {
+                AdapterView.OnItemClickListener { _, _, position, _ ->
+                    if (isSelecting()) {
+                        changeSelection(offlineSessionAdapter!!, position)
+                    } else {
+                        launchChatActivity(offlineSessionAdapter!!.getItem(position))
                     }
                 }
-                onItemLongClickListener = AdapterView.OnItemLongClickListener { _, _, position, _ ->
-                    changeSelection(offlineSessionAdapter!!, position)
-                    true
-                }
-                setOnScrollListener(onSessionsScrollListener)
             }
-            if (intent.action == NotificationBroadcastReceiver.ACTION_LOGOUT) {
-                askLogOut()
+            onItemLongClickListener = AdapterView.OnItemLongClickListener { _, _, position, _ ->
+                changeSelection(offlineSessionAdapter!!, position)
+                true
             }
+            setOnScrollListener(onSessionsScrollListener)
+        }
+        if (intent.action == NotificationBroadcastReceiver.ACTION_LOGOUT) {
+            askLogOut()
         }
         serviceConnection = object : ServiceConnection {
             override fun onServiceConnected(name: ComponentName?, service: IBinder) {
@@ -347,13 +341,15 @@ class MainActivity : ServiceBoundActivity() {
             Toast.makeText(this, R.string.open_uri_failed, Toast.LENGTH_SHORT).show()
         } else {
             val msg = if (uris!!.size == 1) {
-                val sendFile = FileUtils.openFileFromUri(this, uris!![0])
-                if (sendFile == null) {
-                    Toast.makeText(this, R.string.open_uri_failed, Toast.LENGTH_SHORT).show()
+                val result = FileUtils.openFileFromUri(this, uris!![0])
+                if (result.file == null) {
+                    if (!result.errorHandled) {
+                        Toast.makeText(this, R.string.open_uri_failed, Toast.LENGTH_SHORT).show()
+                    }
                     return
                 } else {
-                    sendFile.inputStream.close()
-                    getString(R.string.ask_send_single_file, sendFile.fileName, FileUtils.formatSize(sendFile.fileSize), session.name ?: session.ip)
+                    result.file.inputStream.close()
+                    getString(R.string.ask_send_single_file, result.file.fileName, FileUtils.formatSize(result.file.fileSize), session.name ?: session.ip)
                 }
             } else {
                 getString(R.string.ask_send_multiple_files, uris!!.size, session.name ?: session.ip)

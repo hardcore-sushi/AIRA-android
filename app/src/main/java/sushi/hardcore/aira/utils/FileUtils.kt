@@ -2,6 +2,7 @@ package sushi.hardcore.aira.utils
 
 import android.content.ContentValues
 import android.content.Context
+import android.content.Intent
 import android.net.Uri
 import android.os.Environment
 import android.provider.MediaStore
@@ -15,8 +16,8 @@ import java.io.OutputStream
 import java.text.DecimalFormat
 import java.text.SimpleDateFormat
 import java.util.*
-import kotlin.math.pow
 import kotlin.math.log10
+import kotlin.math.pow
 
 object FileUtils {
     private val units = arrayOf("B", "kB", "MB", "GB", "TB")
@@ -29,8 +30,16 @@ object FileUtils {
         ) + " " + units[digitGroups]
     }
 
-    fun openFileFromUri(context: Context, uri: Uri): SendFile? {
+    class SendFileResult(val file: SendFile? = null, val errorHandled: Boolean = false)
+
+    fun openFileFromUri(context: Context, uri: Uri): SendFileResult {
         var sendFile: SendFile? = null
+        try {
+            context.grantUriPermission(context.packageName, uri, Intent.FLAG_GRANT_READ_URI_PERMISSION)
+        } catch (e: SecurityException) {
+            Toast.makeText(context, e.localizedMessage, Toast.LENGTH_LONG).show()
+            return SendFileResult(sendFile, true)
+        }
         val cursor = context.contentResolver.query(uri, null, null, null, null)
         if (cursor != null) {
             if (cursor.moveToFirst()) {
@@ -46,7 +55,7 @@ object FileUtils {
             }
             cursor.close()
         }
-        return sendFile
+        return SendFileResult(sendFile)
     }
 
     class DownloadFile(val fileName: String, val outputStream: OutputStream?)

@@ -311,7 +311,10 @@ class ChatActivity : ServiceBoundActivity() {
     }
 
     private fun scrollToBottom() {
-        binding.recyclerChat.smoothScrollToPosition(chatAdapter.itemCount-1)
+        val target = chatAdapter.itemCount-1
+        if (target >= 0) {
+            binding.recyclerChat.smoothScrollToPosition(target)
+        }
     }
 
     override fun onCreateOptionsMenu(menu: Menu): Boolean {

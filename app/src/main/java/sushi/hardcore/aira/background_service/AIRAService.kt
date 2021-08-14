@@ -159,7 +159,7 @@ class AIRAService : Service() {
         val files = mutableListOf<SendFile>()
         var useLargeFileTransfer = false
         for (uri in uris) {
-            FileUtils.openFileFromUri(this, uri)?.let { sendFile ->
+            FileUtils.openFileFromUri(this, uri).file?.let { sendFile ->
                 files.add(sendFile)
                 if (sendFile.fileSize > Constants.fileSizeLimit) {
                     useLargeFileTransfer = true
