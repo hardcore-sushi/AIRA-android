@@ -9,6 +9,8 @@
     <uses-permission android:name="android.permission.INTERNET"/>
 
     <uses-permission android:name="android.permission.READ_PHONE_STATE" tools:node="remove"/>
+    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" tools:node="remove"/>
+    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" tools:node="remove"/>
 
     <application
         android:icon="@drawable/ic_launcher"
@@ -28,7 +30,7 @@
             </intent-filter>
         </receiver>
 
-        <receiver android:name=".background_service.SystemBroadcastReceiver">
+        <receiver android:name=".background_service.SystemBroadcastReceiver" android:exported="true">
             <intent-filter>
                 <action  android:name="android.intent.action.BOOT_COMPLETED"/>
             </intent-filter>
@@ -38,7 +40,8 @@
         <activity android:name=".MainActivity" android:theme="@style/Theme.AIRA.NoActionBar"/>
         <activity
             android:name=".LoginActivity"
-            android:windowSoftInputMode="adjustResize">
+            android:windowSoftInputMode="adjustResize"
+            android:exported="true">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN"/>
                 <category android:name="android.intent.category.LAUNCHER"/>
