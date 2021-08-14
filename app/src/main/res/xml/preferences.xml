@@ -34,6 +34,17 @@
 
     </PreferenceCategory>
 
+    <PreferenceCategory android:title="@string/app">
+
+        <SwitchPreferenceCompat
+            android:key="startAtBoot"
+            android:defaultValue="true"
+            android:title="@string/start_at_boot"
+            android:summary="@string/start_at_boot_summary"
+            android:icon="@drawable/ic_shuttle"/>
+
+    </PreferenceCategory>
+
     <PreferenceCategory android:title="@string/security">
 
         <SwitchPreferenceCompat

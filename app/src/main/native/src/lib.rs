@@ -53,7 +53,7 @@ fn slice_to_jvalue<'a>(env: JNIEnv, input: &'a [u8]) -> JValue<'a> {
 }
 
 #[no_mangle]
-pub extern fn Java_sushi_hardcore_aira_LoginActivity_00024Companion_initLogging(_: JNIEnv, _: JClass) -> jboolean {
+pub extern fn Java_sushi_hardcore_aira_AIRADatabase_initLogging(_: JNIEnv, _: JClass) -> jboolean {
     bool_to_jboolean(android_log::init("AIRA Native").is_ok())
 }
 
@@ -76,7 +76,7 @@ pub extern fn Java_sushi_hardcore_aira_CreateIdentityFragment_createNewIdentity(
 
 
 #[no_mangle]
-pub extern fn Java_sushi_hardcore_aira_LoginActivity_getIdentityName(env: JNIEnv, _: JClass, database_folder: JString) -> jobject {
+pub extern fn Java_sushi_hardcore_aira_AIRADatabase_getIdentityName(env: JNIEnv, _: JClass, database_folder: JString) -> jobject {
     *match Identity::get_identity_name(&jstring_to_string(env, database_folder)) {
         Ok(name) => *env.new_string(name).unwrap(),
         Err(e) => {

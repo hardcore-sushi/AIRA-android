@@ -27,6 +27,7 @@ import sushi.hardcore.aira.utils.StringUtils
 
 class SettingsActivity: AppCompatActivity() {
     class MySettingsFragment(private val activity: AppCompatActivity): PreferenceFragmentCompat() {
+        private lateinit var databaseFolder: String
         private lateinit var airaService: AIRAService
         private val avatarPicker = AvatarPicker(activity) { picker, avatar ->
             if (::airaService.isInitialized) {
@@ -37,6 +38,7 @@ class SettingsActivity: AppCompatActivity() {
             displayAvatar(avatar)
         }
         private lateinit var identityAvatarPreference: Preference
+        private lateinit var startAtBootSwitch: SwitchPreferenceCompat
 
         override fun onAttach(context: Context) {
             super.onAttach(context)
@@ -45,10 +47,13 @@ class SettingsActivity: AppCompatActivity() {
 
         override fun onCreatePreferences(savedInstanceState: Bundle?, rootKey: String?) {
             setPreferencesFromResource(R.xml.preferences, rootKey)
+            databaseFolder = Constants.getDatabaseFolder(activity)
             findPreference<Preference>("identityAvatar")?.let { identityAvatarPreference = it }
+            startAtBootSwitch = findPreference("startAtBoot")!!
+            updateStartAtBootSwitch(AIRADatabase.isIdentityProtected(databaseFolder))
             val paddingPreference = findPreference<SwitchPreferenceCompat>("psecPadding")
             paddingPreference?.isPersistent = false
-            AIRADatabase.getIdentityAvatar(Constants.getDatabaseFolder(activity))?.let { avatar ->
+            AIRADatabase.getIdentityAvatar(databaseFolder)?.let { avatar ->
                 displayAvatar(avatar)
             }
             Intent(activity, AIRAService::class.java).also { serviceIntent ->
@@ -68,9 +73,9 @@ class SettingsActivity: AppCompatActivity() {
                         avatarPicker.launch()
                     }
                 val dialogBinding = ChangeAvatarDialogBinding.inflate(layoutInflater)
-                val avatar = AIRADatabase.getIdentityAvatar(Constants.getDatabaseFolder(activity))
+                val avatar = AIRADatabase.getIdentityAvatar(databaseFolder)
                 if (avatar == null) {
-                    dialogBinding.avatar.setTextAvatar(airaService.identityName!!)
+                    dialogBinding.avatar.setTextAvatar(airaService.identityName)
                 } else {
                     dialogBinding.avatar.setImageAvatar(avatar)
                     dialogBuilder.setNegativeButton(R.string.remove) { _, _ ->
@@ -112,7 +117,7 @@ class SettingsActivity: AppCompatActivity() {
             findPreference<Preference>("identityPassword")?.setOnPreferenceClickListener {
                 val dialogView = layoutInflater.inflate(R.layout.dialog_password, null)
                 val oldPasswordEditText = dialogView.findViewById<EditText>(R.id.old_password)
-                val isIdentityProtected = AIRADatabase.isIdentityProtected(Constants.getDatabaseFolder(activity))
+                val isIdentityProtected = AIRADatabase.isIdentityProtected(databaseFolder)
                 if (!isIdentityProtected) {
                     oldPasswordEditText.visibility = View.GONE
                 }
@@ -123,24 +128,24 @@ class SettingsActivity: AppCompatActivity() {
                     .setTitle(R.string.change_password)
                     .setPositiveButton(R.string.ok) { _, _ ->
                         val newPassword = newPasswordEditText.text.toString().toByteArray()
-                        if (newPassword.isEmpty()) {
-                            if (isIdentityProtected) { //don't change password if identity is not protected and new password is blank
-                                changePassword(isIdentityProtected, oldPasswordEditText, null)
+                        val newPasswordConfirm = newPasswordConfirmEditText.text.toString().toByteArray()
+                        if (newPassword.contentEquals(newPasswordConfirm)) {
+                            if (newPassword.isEmpty()) {
+                                if (isIdentityProtected) { //don't change password if identity is not protected and new password is blank
+                                    changePassword(isIdentityProtected, oldPasswordEditText, null)
+                                }
+                            } else {
+                                changePassword(isIdentityProtected, oldPasswordEditText, newPassword)
                             }
                         } else {
-                            val newPasswordConfirm = newPasswordConfirmEditText.text.toString().toByteArray()
-                            if (newPassword.contentEquals(newPasswordConfirm)) {
-                                changePassword(isIdentityProtected, oldPasswordEditText, newPassword)
-                            } else {
-                                AlertDialog.Builder(activity, R.style.CustomAlertDialog)
-                                    .setMessage(R.string.password_mismatch)
-                                    .setTitle(R.string.error)
-                                    .setPositiveButton(R.string.ok, null)
-                                    .show()
-                            }
-                            newPassword.fill(0)
-                            newPasswordConfirm.fill(0)
+                            AlertDialog.Builder(activity, R.style.CustomAlertDialog)
+                                .setMessage(R.string.password_mismatch)
+                                .setTitle(R.string.error)
+                                .setPositiveButton(R.string.ok, null)
+                                .show()
                         }
+                        newPassword.fill(0)
+                        newPasswordConfirm.fill(0)
                     }
                     .setNegativeButton(R.string.cancel, null)
                     .show()
@@ -188,7 +193,13 @@ class SettingsActivity: AppCompatActivity() {
             } else {
                 null
             }
-            if (!AIRADatabase.changePassword(Constants.getDatabaseFolder(activity), oldPassword, newPassword)) {
+            if (AIRADatabase.changePassword(databaseFolder, oldPassword, newPassword)) {
+                val isNowIdentityProtected = newPassword != null
+                updateStartAtBootSwitch(isNowIdentityProtected)
+                if (isIdentityProtected && !isNowIdentityProtected ) {
+                    startAtBootSwitch.isChecked = true
+                }
+            } else {
                 AlertDialog.Builder(activity, R.style.CustomAlertDialog)
                     .setMessage(R.string.change_password_failed)
                     .setTitle(R.string.error)
@@ -196,6 +207,15 @@ class SettingsActivity: AppCompatActivity() {
                     .show()
             }
             oldPassword?.fill(0)
+        }
+
+        private fun updateStartAtBootSwitch(isIdentityProtected: Boolean) {
+            startAtBootSwitch.isEnabled = !isIdentityProtected
+            startAtBootSwitch.summary = getString(if (isIdentityProtected) {
+                R.string.start_at_boot_summary_identity_protected
+            } else {
+                R.string.start_at_boot_summary
+            })
         }
     }
 

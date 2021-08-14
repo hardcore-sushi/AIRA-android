@@ -9,21 +9,18 @@ import sushi.hardcore.aira.background_service.AIRAService
 import java.io.File
 
 class LoginActivity : AppCompatActivity() {
-    private external fun getIdentityName(databaseFolder: String): String?
-
     companion object {
         const val NAME_ARG = "identityName"
         const val BINDER_ARG = "binder"
-        private external fun initLogging()
-        init {
-            System.loadLibrary("aira")
-            initLogging()
-        }
+    }
+
+    init {
+        AIRADatabase.init()
     }
 
     inner class ActivityLauncher: Binder() {
-        fun launch(identityName: String) {
-            startMainActivity(identityName)
+        fun launch() {
+            startMainActivity()
         }
     }
 
@@ -38,13 +35,13 @@ class LoginActivity : AppCompatActivity() {
             }
         }
         val isProtected = AIRADatabase.isIdentityProtected(databaseFolder)
-        val name = getIdentityName(databaseFolder)
+        val name = AIRADatabase.getIdentityName(databaseFolder)
         if (AIRAService.isServiceRunning) {
-            startMainActivity(null)
+            startMainActivity()
         } else if (name != null && !isProtected) {
             if (AIRADatabase.loadIdentity(databaseFolder, null)) {
                 AIRADatabase.clearCache()
-                startMainActivity(name)
+                startMainActivity()
             } else {
                 Toast.makeText(this, R.string.identity_load_failed, Toast.LENGTH_SHORT).show()
             }
@@ -62,11 +59,10 @@ class LoginActivity : AppCompatActivity() {
         }
     }
 
-    private fun startMainActivity(identityName: String?) {
+    private fun startMainActivity() {
         val mainActivityIntent = Intent(this, MainActivity::class.java)
         mainActivityIntent.action = intent.action
         mainActivityIntent.putExtras(intent)
-        mainActivityIntent.putExtra(NAME_ARG, identityName)
         startActivity(mainActivityIntent)
         finish()
     }

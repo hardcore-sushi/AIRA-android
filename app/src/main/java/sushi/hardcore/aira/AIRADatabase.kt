@@ -3,7 +3,9 @@ package sushi.hardcore.aira
 import sushi.hardcore.aira.background_service.Contact
 
 object AIRADatabase {
+    external fun initLogging(): Boolean
     external fun isIdentityProtected(databaseFolder: String): Boolean
+    external fun getIdentityName(databaseFolder: String): String?
     external fun loadIdentity(databaseFolder: String, password: ByteArray?): Boolean
     external fun addContact(name: String, avatarUuid: String?, publicKey: ByteArray): Contact?
     external fun removeContact(uuid: String): Boolean
@@ -29,6 +31,11 @@ object AIRADatabase {
     external fun setIdentityAvatar(databaseFolder: String, avatar: ByteArray): Boolean
     external fun removeIdentityAvatar(databaseFolder: String): Boolean
     external fun getIdentityAvatar(databaseFolder: String): ByteArray?
+
+    fun init() {
+        System.loadLibrary("aira")
+        initLogging()
+    }
 
     fun loadAvatar(avatarUuid: String?): ByteArray? {
         return avatarUuid?.let {

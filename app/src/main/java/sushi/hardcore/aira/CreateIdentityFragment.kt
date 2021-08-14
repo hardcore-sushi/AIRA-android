@@ -80,7 +80,7 @@ class CreateIdentityFragment(private val activity: AppCompatActivity) : Fragment
             bundle.getBinder(LoginActivity.BINDER_ARG)?.let { binder ->
                 val databaseFolder = Constants.getDatabaseFolder(requireContext())
                 if (createNewIdentity(databaseFolder, identityName, password)) {
-                    (binder as LoginActivity.ActivityLauncher).launch(identityName)
+                    (binder as LoginActivity.ActivityLauncher).launch()
                     success = true
                 }
             }

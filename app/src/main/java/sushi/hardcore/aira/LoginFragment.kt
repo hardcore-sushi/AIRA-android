@@ -42,7 +42,7 @@ class LoginFragment : Fragment() {
                     binding.buttonLogin.setOnClickListener {
                         if (AIRADatabase.loadIdentity(databaseFolder, binding.editPassword.text.toString().toByteArray())) {
                             AIRADatabase.clearCache()
-                            (binder as LoginActivity.ActivityLauncher).launch(name)
+                            (binder as LoginActivity.ActivityLauncher).launch()
                         } else {
                             Toast.makeText(activity, R.string.identity_load_failed, Toast.LENGTH_SHORT).show()
                         }

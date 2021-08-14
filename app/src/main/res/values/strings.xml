@@ -104,6 +104,10 @@
     <string name="pending_messages">Pending messages:</string>
     <string name="sending_pending_messages">Sending pending messages…</string>
     <string name="stop">Stop</string>
+    <string name="app">App</string>
+    <string name="start_at_boot">Start AIRA service at boot</string>
+    <string name="start_at_boot_summary">If disabled, you won\'t receive messages until you open the app manually.</string>
+    <string name="start_at_boot_summary_identity_protected">Only available if identity is not protected by a password.</string>
 
     <!--accessibility strings-->
     <string name="send_file">Send file</string>

@@ -89,6 +89,7 @@ class AIRAService : Service() {
         }
         override fun onServiceLost(serviceInfo: NsdServiceInfo?) {}
     }
+    lateinit var identityName: String
     val savedMsgs = mutableMapOf<Int, MutableList<ChatItem>>()
     val pendingMsgs = mutableMapOf<Int, MutableList<ByteArray>>()
     val savedNames = mutableMapOf<Int, String>()
@@ -96,7 +97,6 @@ class AIRAService : Service() {
     val notSeen = mutableListOf<Int>()
     var uiCallbacks: UiCallbacks? = null
     var isAppInBackground = true
-    var identityName: String? = null
 
     inner class AIRABinder : Binder() {
         fun getService(): AIRAService = this@AIRAService
@@ -500,14 +500,12 @@ class AIRAService : Service() {
                                 }
                             }
                             MESSAGE_SEND_NAME -> {
-                                identityName?.let {
-                                    val tellingName = Protocol.name(it)
-                                    for (session in sessions.values) {
-                                        try {
-                                            session.encryptAndSend(tellingName, usePadding)
-                                        } catch (e: SocketException) {
-                                            e.printStackTrace()
-                                        }
+                                val tellingName = Protocol.name(identityName)
+                                for (session in sessions.values) {
+                                    try {
+                                        session.encryptAndSend(tellingName, usePadding)
+                                    } catch (e: SocketException) {
+                                        e.printStackTrace()
                                     }
                                 }
                             }
@@ -540,6 +538,7 @@ class AIRAService : Service() {
                 }
             }
         }
+        identityName = AIRADatabase.getIdentityName(Constants.getDatabaseFolder(this))!!
         val contactList = AIRADatabase.loadContacts()
         if (contactList == null) {
             contacts = HashMap(0)
@@ -773,9 +772,7 @@ class AIRAService : Service() {
                                                     }
                                                 }
                                                 Protocol.ASK_PROFILE_INFO -> {
-                                                    identityName?.let { name ->
-                                                        session.encryptAndSend(Protocol.name(name), usePadding)
-                                                    }
+                                                    session.encryptAndSend(Protocol.name(identityName), usePadding)
                                                     AIRADatabase.getIdentityAvatar(Constants.getDatabaseFolder(this))?.let { avatar ->
                                                         session.encryptAndSend(Protocol.avatar(avatar), usePadding)
                                                     }

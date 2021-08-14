@@ -95,11 +95,6 @@ class MainActivity : ServiceBoundActivity() {
         setContentView(binding.root)
         setSupportActionBar(binding.toolbar.toolbar)
 
-        val identityName = intent.getStringExtra(LoginActivity.NAME_ARG)
-        identityName?.let {
-            initToolbar(it)
-        }
-
         val openedToShareFile = intent.action == Intent.ACTION_SEND || intent.action == Intent.ACTION_SEND_MULTIPLE
 
         onlineSessionAdapter = SessionAdapter(this)
@@ -157,12 +152,10 @@ class MainActivity : ServiceBoundActivity() {
                 airaService.uiCallbacks = uiCallbacks
                 airaService.isAppInBackground = false
                 refreshSessions()
-                if (AIRAService.isServiceRunning) {
-                    airaService.identityName?.let { initToolbar(it) }
-                } else {
-                    airaService.identityName = identityName
+                if (!AIRAService.isServiceRunning) {
                     startService(serviceIntent)
                 }
+                initToolbar(airaService.identityName)
             }
             override fun onServiceDisconnected(name: ComponentName?) {}
         }
