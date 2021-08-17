@@ -29,11 +29,9 @@ class SettingsActivity: AppCompatActivity() {
     class MySettingsFragment(private val activity: AppCompatActivity): PreferenceFragmentCompat() {
         private lateinit var databaseFolder: String
         private lateinit var airaService: AIRAService
-        private val avatarPicker = AvatarPicker(activity) { picker, avatar ->
+        private val avatarPicker = AvatarPicker(activity) { avatar ->
             if (::airaService.isInitialized) {
-                picker.setOnAvatarCompressed { compressedAvatar ->
-                    airaService.changeAvatar(compressedAvatar)
-                }
+                airaService.changeAvatar(avatar)
             }
             displayAvatar(avatar)
         }
@@ -174,17 +172,18 @@ class SettingsActivity: AppCompatActivity() {
             if (avatar == null) {
                 identityAvatarPreference.setIcon(R.drawable.ic_face)
             } else {
-                displayAvatar(Glide.with(this).load(avatar))
+                Glide
+                    .with(this)
+                    .load(avatar)
+                    .apply(RequestOptions().override(90)) //reduce image to be the same size as other icons
+                    .circleCrop()
+                    .into(object : CustomTarget<Drawable>() {
+                    override fun onResourceReady(resource: Drawable, transition: Transition<in Drawable>?) {
+                        identityAvatarPreference.icon = resource
+                    }
+                    override fun onLoadCleared(placeholder: Drawable?) {}
+                })
             }
-        }
-
-        private fun displayAvatar(glideBuilder: RequestBuilder<Drawable>) {
-            glideBuilder.apply(RequestOptions().override(90)).circleCrop().into(object : CustomTarget<Drawable>() {
-                override fun onResourceReady(resource: Drawable, transition: Transition<in Drawable>?) {
-                    identityAvatarPreference.icon = resource
-                }
-                override fun onLoadCleared(placeholder: Drawable?) {}
-            })
         }
 
         private fun changePassword(isIdentityProtected: Boolean, oldPasswordEditText: EditText, newPassword: ByteArray?) {

@@ -9,6 +9,7 @@ import android.view.View
 import android.view.ViewGroup
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
+import com.bumptech.glide.Glide
 import sushi.hardcore.aira.databinding.FragmentCreateIdentityBinding
 import sushi.hardcore.aira.utils.AvatarPicker
 
@@ -25,11 +26,9 @@ class CreateIdentityFragment(private val activity: AppCompatActivity) : Fragment
         }
     }
 
-    private val avatarPicker = AvatarPicker(activity) { picker, avatar ->
-        picker.setOnAvatarCompressed { compressedAvatar ->
-            AIRADatabase.setIdentityAvatar(Constants.getDatabaseFolder(activity), compressedAvatar)
-        }
-        avatar.circleCrop().into(binding.avatar)
+    private val avatarPicker = AvatarPicker(activity) { avatar ->
+        AIRADatabase.setIdentityAvatar(Constants.getDatabaseFolder(activity), avatar)
+        Glide.with(this).load(avatar).circleCrop().into(binding.avatar)
     }
     private lateinit var binding: FragmentCreateIdentityBinding
 
