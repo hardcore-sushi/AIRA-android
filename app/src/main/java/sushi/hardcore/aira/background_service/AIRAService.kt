@@ -14,7 +14,10 @@ import android.widget.Toast
 import androidx.annotation.RequiresApi
 import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
+import androidx.core.app.Person
 import androidx.core.app.RemoteInput
+import androidx.core.graphics.drawable.IconCompat
+import com.bumptech.glide.Glide
 import sushi.hardcore.aira.*
 import sushi.hardcore.aira.utils.FileUtils
 import sushi.hardcore.aira.utils.StringUtils
@@ -48,6 +51,9 @@ class AIRAService : Service() {
     private var sessionCounter = 0
     private lateinit var selector: Selector
     private val sessionIdByKey = mutableMapOf<SelectionKey, Int>()
+    private val databaseFolder by lazy {
+        Constants.getDatabaseFolder(this)
+    }
     private val notificationIdManager = NotificationIdManager()
     private val sendFileTransfers = mutableMapOf<Int, FilesSender>()
     val receiveFileTransfers = mutableMapOf<Int, FilesReceiver>()
@@ -293,7 +299,6 @@ class AIRAService : Service() {
     }
 
     fun changeAvatar(avatar: ByteArray?): Boolean {
-        val databaseFolder = Constants.getDatabaseFolder(applicationContext)
         val success = if (avatar == null) {
             AIRADatabase.removeIdentityAvatar(databaseFolder)
         } else {
@@ -362,17 +367,49 @@ class AIRAService : Service() {
         }.start()
     }
 
-    private fun sendNotification(sessionId: Int, msgContent: ByteArray) {
+    private fun avatarToIcon(avatar: ByteArray): IconCompat {
+        return IconCompat.createWithBitmap(
+            Glide.with(this)
+                .asBitmap()
+                .load(avatar)
+                .submit()
+                .get()
+        )
+    }
+
+    private fun sendNotification(sessionId: Int, msgContent: ByteArray, timestamp: Long) {
+        val name = getNameOf(sessionId)
+        val text = if (msgContent[0] == Protocol.MESSAGE) {
+            msgContent.decodeToString(1)
+        } else { //file
+            msgContent.decodeToString(17)
+        }
         val notification = NotificationCompat.Builder(this, MESSAGES_NOTIFICATION_CHANNEL_ID)
                 .setCategory(NotificationCompat.CATEGORY_MESSAGE)
                 .setSmallIcon(R.drawable.ic_launcher)
-                .setContentTitle(getNameOf(sessionId))
-                .setContentText(
-                        if (msgContent[0] == Protocol.MESSAGE) {
-                            msgContent.decodeToString(1)
-                        } else { //file
-                            msgContent.decodeToString(17)
+                .setContentTitle(name)
+                .setContentText(text)
+                .setStyle(NotificationCompat.MessagingStyle(
+                    Person.Builder()
+                        .setName(identityName)
+                        .apply {
+                            AIRADatabase.getIdentityAvatar(databaseFolder)?.let {
+                                setIcon(avatarToIcon(it))
+                            }
                         }
+                        .build()
+                    )
+                    .addMessage(text, timestamp, Person.Builder()
+                        .setName(name)
+                        .apply {
+                            (savedAvatars[sessionId] ?: contacts[sessionId]?.avatar)?.let { uuid ->
+                                AIRADatabase.loadAvatar(uuid)?.let {
+                                    setIcon(avatarToIcon(it))
+                                }
+                            }
+                        }
+                        .build()
+                    )
                 )
                 .setContentIntent(
                         PendingIntent.getActivity(this, 0, Intent(this, ChatActivity::class.java).apply {
@@ -538,7 +575,7 @@ class AIRAService : Service() {
                 }
             }
         }
-        identityName = AIRADatabase.getIdentityName(Constants.getDatabaseFolder(this))!!
+        identityName = AIRADatabase.getIdentityName(databaseFolder)!!
         val contactList = AIRADatabase.loadContacts()
         if (contactList == null) {
             contacts = HashMap(0)
@@ -773,7 +810,7 @@ class AIRAService : Service() {
                                                 }
                                                 Protocol.ASK_PROFILE_INFO -> {
                                                     session.encryptAndSend(Protocol.name(identityName), usePadding)
-                                                    AIRADatabase.getIdentityAvatar(Constants.getDatabaseFolder(this))?.let { avatar ->
+                                                    AIRADatabase.getIdentityAvatar(databaseFolder)?.let { avatar ->
                                                         session.encryptAndSend(Protocol.avatar(avatar), usePadding)
                                                     }
                                                 }
@@ -836,7 +873,7 @@ class AIRAService : Service() {
                                                             savedMsgs[sessionId]?.add(ChatItem(false, timestamp, handledMsg))
                                                         }
                                                         if (isAppInBackground) {
-                                                            sendNotification(sessionId, handledMsg)
+                                                            sendNotification(sessionId, handledMsg, timestamp)
                                                         }
                                                     }
                                                 }
