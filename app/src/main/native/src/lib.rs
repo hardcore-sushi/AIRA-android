@@ -6,7 +6,6 @@ mod utils;
 use std::{convert::TryInto, fmt::Display, str::FromStr, sync::{Mutex}};
 use lazy_static::lazy_static;
 use uuid::Uuid;
-use android_log;
 use identity::{Identity, Contact, Message};
 use crate::crypto::{HandshakeKeys, ApplicationKeys};
 

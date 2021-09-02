@@ -12,7 +12,7 @@ impl<'a> KeyValueTable<'a> {
         Ok(KeyValueTable {db, table_name})
     }
     pub fn set(&self, key: &str, value: &[u8]) -> Result<usize, Error> {
-        Ok(self.db.execute(&format!("INSERT INTO {} (key, value) VALUES (?1, ?2)", self.table_name), params![key, value])?)
+        self.db.execute(&format!("INSERT INTO {} (key, value) VALUES (?1, ?2)", self.table_name), params![key, value])
     }
     pub fn get(&self, key: &str) -> Result<Vec<u8>, Error> {
         let mut stmt = self.db.prepare(&format!("SELECT value FROM {} WHERE key=\"{}\"", self.table_name, key))?;

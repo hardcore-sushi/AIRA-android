@@ -1,6 +1,6 @@
 [package]
 name = "aira"
-version = "0.0.1"
+version = "0.1.0"
 authors = ["Hardcore Sushi <hardcore.sushi@disroot.org>"]
 edition = "2018"
 
@@ -25,7 +25,7 @@ hmac = "0.11"
 hex = "0.4"
 strum_macros = "0.21" #display enums
 uuid = { version = "0.8", features = ["v4"] }
-scrypt = "0.7"
+scrypt = "0.8"
 zeroize = "1.4"
 log = "0.4"
 android_log = "0.1"

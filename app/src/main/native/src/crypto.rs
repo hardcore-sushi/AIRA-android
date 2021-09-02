@@ -86,10 +86,10 @@ impl HandshakeKeys {
         HandshakeKeys {
             local_key: local_handshake_key,
             local_iv: local_handshake_iv,
-            local_handshake_traffic_secret: local_handshake_traffic_secret,
+            local_handshake_traffic_secret,
             peer_key: peer_handshake_key,
             peer_iv: peer_handshake_iv,
-            peer_handshake_traffic_secret: peer_handshake_traffic_secret,
+            peer_handshake_traffic_secret,
             handshake_secret: handshake_secret.as_slice().try_into().unwrap(),
         }
     }
