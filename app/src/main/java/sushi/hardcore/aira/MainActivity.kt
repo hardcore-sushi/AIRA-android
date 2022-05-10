@@ -188,7 +188,10 @@ class MainActivity : ServiceBoundActivity() {
 
     override fun onCreateOptionsMenu(menu: Menu): Boolean {
         menuInflater.inflate(R.menu.main_activity, menu)
-        menu.findItem(R.id.remove_contact).isVisible = isSelecting()
+        val isSelecting = isSelecting()
+        menu.findItem(R.id.settings).isVisible = !isSelecting
+        menu.findItem(R.id.close).isVisible = !isSelecting
+        menu.findItem(R.id.remove_contact).isVisible = isSelecting
         return true
     }
 
