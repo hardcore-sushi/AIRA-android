@@ -1,7 +1,7 @@
 use std::{convert::TryInto, fmt::Display};
 use hkdf::Hkdf;
 use sha2::Sha384;
-use hmac::{Hmac, NewMac, Mac};
+use hmac::{Hmac, Mac};
 use scrypt::{scrypt, Params};
 use rand::{RngCore, rngs::OsRng};
 use aes_gcm::{aead::Aead, NewAead, Nonce};
@@ -148,7 +148,7 @@ pub fn verify_handshake_finished(peer_handshake_finished: [u8; HASH_OUTPUT_LEN],
     hkdf_expand_label(&peer_handshake_traffic_secret, "finished", None, &mut peer_finished_key);
     let mut hmac = Hmac::<Sha384>::new_from_slice(&peer_finished_key).unwrap();
     hmac.update(&handshake_hash);
-    hmac.verify(&peer_handshake_finished).is_ok()
+    hmac.verify_slice(&peer_handshake_finished).is_ok()
 }
 
 

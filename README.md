@@ -26,8 +26,8 @@ AIRA is still under developement and is not ready for production usage yet. Not 
 # Download
 AIRA releases are availables in the "Release" section. All APKs are signed with my PGP key available on keyservers. To download it:
 
-`gpg --keyserver hkp://pool.sks-keyservers.net --recv-keys 007F84120107191E` \
-Fingerprint: `BD56 2147 9E7B 74D3 6A40  5BE8 007F 8412 0107 191E` \
+`gpg --keyserver hkps://keyserver.ubuntu.com --recv-keys AFE384344A45E13A` \
+Fingerprint: `B64E FE86 CEE1 D054 F082  1711 AFE3 8434 4A45 E13A` \
 Email: `Hardcore Sushi <hardcore.sushi@disroot.org>`
 
 Then, verify APK: `gpg --verify AIRA.apk.asc AIRA.apk`
@@ -39,12 +39,12 @@ __Don't install the APK if the verification fails!__
 AIRA android uses some code from the desktop version which is written in Rust. Therefore, you need to compile this Rust code first.
 ```
 curl --proto '=https' --tlsv1.3 -sSf https://sh.rustup.rs | sh
-rustup target add aarch64-linux-android armv7-linux-androideabi
+rustup target add aarch64-linux-android armv7-linux-androideabi x86_64-linux-android i686-linux-android
 ```
 ### Install NDK
-The Rust code uses a crate called "rusqlite" to store data in SQLite databases. This crates uses the original SQLite3 library written in C. Therefore, to compile it you need the Android NDK. You can find instructions to install the NDK here: https://developer.android.com/ndk/guides
+We also need the Android NDK to cross-compile the rust code to Android. Currently, only versions up to __r22b__ are supported. You can find instructions to install the NDK here: https://developer.android.com/ndk/guides
 
-Once installed, you need to define the $ANDROID_NDK_HOME environment variable (if not already set):
+Once installed, you need to define the `$ANDROID_NDK_HOME` environment variable (if not already set):
 ```
 export ANDROID_NDK_HOME=/home/<user>/Android/SDK/ndk/<NDK version>"
 ```

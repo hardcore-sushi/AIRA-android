@@ -14,18 +14,17 @@ crate-type = ["dylib"]
 rand = "0.8"
 rand-7 = {package = "rand", version = "0.7"}
 lazy_static = "1.4"
-rusqlite = { version = "0.25", features = ["bundled"] }
+rusqlite = { version = "0.27", features = ["bundled"] }
 ed25519-dalek = "1" #for singing
-x25519-dalek = "1.1" #for shared secret
-sha2 = "0.9"
-hkdf = "0.11"
+sha2 = "0.10"
+hkdf = "0.12"
 aes-gcm = "0.9" #PSEC
 aes-gcm-siv = "0.10" #Database
-hmac = "0.11"
+hmac = "0.12"
 hex = "0.4"
-strum_macros = "0.21" #display enums
-uuid = { version = "0.8", features = ["v4"] }
-scrypt = "0.8"
-zeroize = "1.4"
+strum_macros = "0.24" #display enums
+uuid = { version = "1.0", features = ["v4"] }
+scrypt = "0.10"
+zeroize = "1.3"
 log = "0.4"
 android_log = "0.1"
